@@ -1,4 +1,4 @@
-# PRIVADOC · v0.10.1
+# PRIVADOC · v1.0
 
 PRIVADOC es un prototipo universitario de protección local de datos sensibles en documentos peruanos y comprobantes digitales.
 
