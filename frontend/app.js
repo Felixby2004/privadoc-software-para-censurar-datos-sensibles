@@ -2,7 +2,7 @@ const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 const SETTINGS_KEY = 'privadoc.settings.v1';
 // Reemplaza únicamente este valor cuando tengas el enlace definitivo de Google Forms.
-const FEEDBACK_FORM_URL = 'https://forms.gle/M6TiZFznK7gffHtK7';
+const FEEDBACK_FORM_URL = 'GOOGLE_FORMS_URL_AQUI';
 const DOCUMENT_TYPES = ['dni_azul','dni_amarillo','dni_electronico','comprobantes'];
 const DEFAULT_SETTINGS = Object.freeze({
   defaultRedactionMode:'black',
@@ -50,6 +50,26 @@ function riskClass(risk){return risk==='Medio'?'medium':(risk==='Contexto'?'cont
 function doc(){ return analysis?.documents?.[activeDocIndex] || null; }
 function selectedSet(d=doc()){ if(!d)return new Set(); if(!selectedByDoc.has(d.id))selectedByDoc.set(d.id,new Set()); return selectedByDoc.get(d.id); }
 function manualBoxes(d=doc()){ if(!d)return []; if(!manualByDoc.has(d.id))manualByDoc.set(d.id,[]); return manualByDoc.get(d.id); }
+
+async function readApiResponse(response, fallbackMessage){
+  const raw=await response.text();
+  let data=null;
+  if(raw){
+    try{
+      data=JSON.parse(raw);
+    }catch(error){
+      console.error('Respuesta no JSON del servidor:',{status:response.status,raw:raw.slice(0,1000),error});
+    }
+  }
+  if(!response.ok){
+    const detail=data?.detail || fallbackMessage || `El servidor no pudo completar la solicitud (${response.status}).`;
+    throw new Error(detail);
+  }
+  if(!data){
+    throw new Error('El servidor interrumpió el procesamiento antes de responder. Puede estar temporalmente ocupado, reiniciándose o sin recursos suficientes. Intenta nuevamente.');
+  }
+  return data;
+}
 
 function documentTypeLabel(type){
   if(type==='dni_amarillo') return 'DNI amarillo · menor de edad';
@@ -115,7 +135,7 @@ $('#analyzeBtn').addEventListener('click',async()=>{
   if(!selectedFile)return; startProgress();
   const fd=new FormData(); fd.append('file',selectedFile); fd.append('document_type',selectedDocumentType);
   try{
-    const r=await fetch('/api/analyze',{method:'POST',body:fd}); const d=await r.json(); if(!r.ok)throw new Error(d.detail||'No se pudo analizar el documento.');
+    const r=await fetch('/api/analyze',{method:'POST',body:fd}); const d=await readApiResponse(r,'No se pudo analizar el documento.');
     analysis=d; activeDocIndex=0; selectedByDoc.clear(); manualByDoc.clear();
     if(!Array.isArray(analysis.documents) || analysis.documents.length===0) throw new Error('El backend no devolvió ningún documento procesado.');
     analysis.documents.forEach(x=>{
@@ -239,21 +259,17 @@ $('#rememberTypeSetting')?.addEventListener('change',e=>saveSettings({rememberDo
 $('#resetSettingsBtn')?.addEventListener('click',()=>{settings={...DEFAULT_SETTINGS};saveSettings(settings);setDocumentType('dni_azul');});
 
 function feedbackFormReady(){
-  try {
-    const url = new URL(FEEDBACK_FORM_URL);
-    return (url.protocol === "https:" || url.protocol === "http:") &&
-           (url.hostname === "docs.google.com" && url.pathname.startsWith("/forms/") ||
-            url.hostname === "forms.gle");
-  } catch (e) {
-    return false;
-  }
+  return /^https:\/\/docs\.google\.com\/forms\//i.test(FEEDBACK_FORM_URL) || /^https:\/\/forms\.gle\//i.test(FEEDBACK_FORM_URL);
 }
 function revealFeedbackPrompt(){
   if(sessionStorage.getItem('privadoc.feedback.dismissed')==='1')return;
   const card=$('#feedbackCard');
   if(!card)return;
   card.classList.remove('hidden');
-  requestAnimationFrame(()=>card.classList.add('visible'));
+  requestAnimationFrame(()=>{
+    card.classList.add('visible');
+    window.setTimeout(()=>card.scrollIntoView({behavior:'smooth',block:'nearest'}),180);
+  });
 }
 $('#downloadBtn')?.addEventListener('click',()=>{
   window.setTimeout(revealFeedbackPrompt,350);
@@ -278,7 +294,7 @@ $('#redactBtn').addEventListener('click',async()=>{
   try{
     const mode=$('input[name="mode"]:checked').value;
     const r=await fetch('/api/redact',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({analysis_id:analysis.analysis_id,selections,mode})});
-    const d=await r.json();if(!r.ok)throw new Error(d.detail||'No se pudo generar la copia censurada.');
+    const d=await readApiResponse(r,'No se pudo generar la copia censurada.');
     const outputFormat=(d.mime||'image/png').includes('pdf')?'PDF':'PNG';
     const protectionCount=totalSelectedAuto()+totalManual();
     $('#redactedImg').src=d.preview;$('#downloadBtn').href=d.download_data;$('#downloadBtn').download=d.filename;$('#doneCount').textContent=protectionCount;$('#doneFormat').textContent=outputFormat;

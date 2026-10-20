@@ -2,134 +2,1468 @@
 <html lang="es">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Privadoc · Protección de documentos</title>
-  <link rel="stylesheet" href="/assets/styles.css?v=0.10.0" />
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1"
+  />
+
+  <title>
+    Privadoc · Protección de documentos
+  </title>
+
+  <link
+    rel="stylesheet"
+    href="/assets/styles.css?v=0.10.3"
+  />
 </head>
+
 <body>
+
   <div class="app-shell">
+
     <aside class="sidebar">
-      <div class="brand"><div class="brand-mark">P</div><div><strong>Privadoc</strong><span>Protección local</span></div></div>
-      <nav class="nav">
-        <button class="nav-item active" data-view="protection"><span>▣</span>Protección de documentos</button>
-        <button class="nav-item" data-view="settings"><span>⚙</span>Configuración</button>
-      </nav>
-      <div class="sidebar-info">
-        <div class="lock-dot">✓</div>
-        <div><strong>Procesamiento local</strong><p>El documento se analiza en este equipo/servidor. No se envía a una API externa.</p></div>
+
+      <div class="brand">
+
+        <div class="brand-mark">
+          P
+        </div>
+
+        <div>
+          <strong>
+            Privadoc
+          </strong>
+
+          <span>
+            Protección local
+          </span>
+        </div>
+
       </div>
+
+      <nav class="nav">
+
+        <button
+          class="nav-item active"
+          data-view="protection"
+        >
+          <span>▣</span>
+          Protección de documentos
+        </button>
+
+        <button
+          class="nav-item"
+          data-view="settings"
+        >
+          <span>⚙</span>
+          Configuración
+        </button>
+
+      </nav>
+
+      <div class="sidebar-info">
+
+        <div class="lock-dot">
+          ✓
+        </div>
+
+        <div>
+
+          <strong>
+            Procesamiento privado
+          </strong>
+
+          <p>
+            PRIVADOC procesa el documento
+            sin utilizar servicios externos
+            de reconocimiento u OCR.
+          </p>
+
+        </div>
+
+      </div>
+
+      <div class="version">
+        DNI + comprobantes digitales · v0.10.3
+      </div>
+
     </aside>
 
+
     <main class="main">
+
       <header class="page-head">
-        <div><span class="kicker" id="pageKicker">Protección de identidad</span><h1 id="pageTitle">Censura datos sensibles antes de compartir un documento</h1><p id="pageSubtitle">Analiza documentos de identidad peruanos, revisa lo encontrado y decide exactamente qué ocultar.</p></div>
+
+        <div>
+
+          <span
+            class="kicker"
+            id="pageKicker"
+          >
+            Protección de identidad
+          </span>
+
+          <h1 id="pageTitle">
+            Censura datos sensibles antes
+            de compartir un documento
+          </h1>
+
+          <p id="pageSubtitle">
+            Analiza documentos de identidad
+            peruanos, revisa lo encontrado
+            y decide exactamente qué ocultar.
+          </p>
+
+        </div>
+
+        <div class="local-chip">
+          <span></span>
+          Motor activo
+        </div>
+
       </header>
 
-      <section class="stepper" id="mainStepper" aria-label="Progreso">
-        <div class="step active" id="step1"><b>1</b><div><strong>Cargar</strong><span>Selecciona un documento</span></div></div>
+
+      <section
+        class="stepper"
+        id="mainStepper"
+        aria-label="Progreso"
+      >
+
+        <div
+          class="step active"
+          id="step1"
+        >
+
+          <b>1</b>
+
+          <div>
+            <strong>Cargar</strong>
+            <span>
+              Selecciona un documento
+            </span>
+          </div>
+
+        </div>
+
         <i></i>
-        <div class="step" id="step2"><b>2</b><div><strong>Revisar</strong><span>Confirma los datos</span></div></div>
+
+        <div
+          class="step"
+          id="step2"
+        >
+
+          <b>2</b>
+
+          <div>
+            <strong>Revisar</strong>
+            <span>
+              Confirma los datos
+            </span>
+          </div>
+
+        </div>
+
         <i></i>
-        <div class="step" id="step3"><b>3</b><div><strong>Proteger</strong><span>Genera una copia censurada</span></div></div>
+
+        <div
+          class="step"
+          id="step3"
+        >
+
+          <b>3</b>
+
+          <div>
+            <strong>Proteger</strong>
+            <span>
+              Genera una copia censurada
+            </span>
+          </div>
+
+        </div>
+
       </section>
 
-      <section class="screen" id="uploadScreen">
+
+      <section
+        class="screen"
+        id="uploadScreen"
+      >
+
         <div class="card upload-card">
-          <div class="card-head"><div><span class="section-label">Tipo de documento</span><h2>¿Qué vas a proteger?</h2><p>El motor local reconoce DNI azul, DNI amarillo de menor de edad, DNI electrónico y comprobantes digitales bancarios.</p></div></div>
-          <div class="doc-types">
-            <button class="doc-type selected" data-type="dni_azul"><span class="doc-glyph">DNI</span><div><strong>DNI azul peruano</strong><small>Anverso, reverso o ambos en una hoja</small></div><b>✓</b></button>
-            <button class="doc-type yellow" data-type="dni_amarillo"><span class="doc-glyph yellow-glyph">MEN</span><div><strong>DNI amarillo menor de edad</strong><small>Anverso y reverso · protección especial del rostro</small></div><b>✓</b></button>
-            <button class="doc-type electronic" data-type="dni_electronico"><span class="doc-glyph electronic-glyph">DNIe</span><div><strong>DNI electrónico</strong><small>Anverso y reverso · CUI, QR, MRZ, domicilio y biometría</small></div><b>✓</b></button>
-            <button class="doc-type" data-type="comprobantes"><span class="doc-glyph">CMP</span><div><strong>Comprobantes bancarios</strong><small>Transferencias, pagos y vouchers digitales</small></div><b>✓</b></button>
-          </div>
 
-          <div class="drop-zone" id="dropZone">
-            <div class="drop-icon">↑</div>
-            <h3 id="uploadDocTitle">Suelta aquí una foto, imagen o PDF de tu documento</h3>
-            <p>JPG, PNG o PDF · máximo 30 MB · mejor resultado con el documento completo y sin reflejos</p>
-            <div class="upload-actions">
-              <label class="btn primary">Seleccionar archivo<input id="fileInput" type="file" accept="image/jpeg,image/png,application/pdf" hidden></label>
+          <div class="card-head">
+
+            <div>
+
+              <span class="section-label">
+                Tipo de documento
+              </span>
+
+              <h2>
+                ¿Qué vas a proteger?
+              </h2>
+
+              <p>
+                El motor reconoce DNI azul,
+                DNI amarillo de menor de edad,
+                DNI electrónico y comprobantes
+                digitales bancarios.
+              </p>
+
             </div>
-            <div class="picked-file hidden" id="pickedFile"><span class="file-icon">✓</span><div><strong id="fileName"></strong><small id="fileMeta"></small></div><button id="clearFile" type="button">Cambiar</button></div>
+
           </div>
 
-          <div class="tip-row"><div>① <span>Coloca todo el documento dentro de la imagen.</span></div><div>② <span>Evita brillos sobre los textos.</span></div><div>③ <span>Usa una resolución legible.</span></div></div>
-          <div class="upload-footer"><div class="privacy-inline">🔒 El análisis y la censura se realizan localmente</div><button id="analyzeBtn" class="btn primary large" disabled>Analizar documento <span>→</span></button></div>
+
+          <div class="doc-types">
+
+            <button
+              class="doc-type selected"
+              data-type="dni_azul"
+            >
+
+              <span class="doc-glyph">
+                DNI
+              </span>
+
+              <div>
+
+                <strong>
+                  DNI azul peruano
+                </strong>
+
+                <small>
+                  Anverso, reverso o ambos
+                  en una hoja
+                </small>
+
+              </div>
+
+              <b>✓</b>
+
+            </button>
+
+
+            <button
+              class="doc-type yellow"
+              data-type="dni_amarillo"
+            >
+
+              <span
+                class="doc-glyph yellow-glyph"
+              >
+                MEN
+              </span>
+
+              <div>
+
+                <strong>
+                  DNI amarillo menor de edad
+                </strong>
+
+                <small>
+                  Anverso y reverso ·
+                  protección especial del rostro
+                </small>
+
+              </div>
+
+              <b>✓</b>
+
+            </button>
+
+
+            <button
+              class="doc-type electronic"
+              data-type="dni_electronico"
+            >
+
+              <span
+                class="doc-glyph electronic-glyph"
+              >
+                DNIe
+              </span>
+
+              <div>
+
+                <strong>
+                  DNI electrónico
+                </strong>
+
+                <small>
+                  Anverso y reverso ·
+                  CUI, QR, MRZ, domicilio
+                  y biometría
+                </small>
+
+              </div>
+
+              <b>✓</b>
+
+            </button>
+
+
+            <button
+              class="doc-type"
+              data-type="comprobantes"
+            >
+
+              <span class="doc-glyph">
+                CMP
+              </span>
+
+              <div>
+
+                <strong>
+                  Comprobantes bancarios
+                </strong>
+
+                <small>
+                  Transferencias, pagos
+                  y vouchers digitales
+                </small>
+
+              </div>
+
+              <b>✓</b>
+
+            </button>
+
+          </div>
+
+
+          <div
+            class="drop-zone"
+            id="dropZone"
+          >
+
+            <div class="drop-icon">
+              ↑
+            </div>
+
+            <h3 id="uploadDocTitle">
+              Suelta aquí una foto,
+              imagen o PDF de tu documento
+            </h3>
+
+            <p>
+              JPG, PNG o PDF · máximo 30 MB ·
+              mejor resultado con el documento
+              completo y sin reflejos
+            </p>
+
+            <div class="upload-actions">
+
+              <label class="btn primary">
+
+                Seleccionar archivo
+
+                <input
+                  id="fileInput"
+                  type="file"
+                  accept="
+                    image/jpeg,
+                    image/png,
+                    application/pdf
+                  "
+                  hidden
+                />
+
+              </label>
+
+            </div>
+
+
+            <div
+              class="picked-file hidden"
+              id="pickedFile"
+            >
+
+              <span class="file-icon">
+                ✓
+              </span>
+
+              <div>
+
+                <strong id="fileName"></strong>
+
+                <small id="fileMeta"></small>
+
+              </div>
+
+              <button
+                id="clearFile"
+                type="button"
+              >
+                Cambiar
+              </button>
+
+            </div>
+
+          </div>
+
+
+          <div class="tip-row">
+
+            <div>
+              ①
+              <span>
+                Coloca todo el documento
+                dentro de la imagen.
+              </span>
+            </div>
+
+            <div>
+              ②
+              <span>
+                Evita brillos sobre los textos.
+              </span>
+            </div>
+
+            <div>
+              ③
+              <span>
+                Usa una resolución legible.
+              </span>
+            </div>
+
+          </div>
+
+
+          <div class="upload-footer">
+
+            <div class="privacy-inline">
+              🔒 El documento se procesa
+              únicamente durante la sesión
+            </div>
+
+            <button
+              id="analyzeBtn"
+              class="btn primary large"
+              disabled
+            >
+              Analizar documento
+              <span>→</span>
+            </button>
+
+          </div>
+
         </div>
+
       </section>
 
-      <section class="screen hidden" id="progressScreen">
+
+      <section
+        class="screen hidden"
+        id="progressScreen"
+      >
+
         <div class="card processing-card">
-          <div class="scan-visual"><div class="scan-card"><div class="scan-photo"></div><div class="scan-lines"><i></i><i></i><i></i><i></i></div><div class="laser"></div></div></div>
-          <div class="processing-copy"><span class="section-label">Análisis local</span><h2 id="progressTitle">Preparando el documento…</h2><p id="progressText">Estamos preparando la imagen para mejorar la lectura.</p><div class="progress-track"><div id="progressBar"></div></div><div class="progress-status"><span id="progressPercent">8%</span><span>No cierres esta ventana</span></div>
-            <div class="process-list"><div id="p1" class="process-item active"><b>1</b><div><strong>Preparando imagen</strong><span>Orientación, perspectiva y tamaño</span></div></div><div id="p2" class="process-item"><b>2</b><div><strong>Leyendo contenido</strong><span>OCR local sobre el documento</span></div></div><div id="p3" class="process-item"><b>3</b><div><strong>Ubicando datos sensibles</strong><span>Número, nombres, fechas y fotografía</span></div></div></div>
+
+          <div class="scan-visual">
+
+            <div class="scan-card">
+
+              <div class="scan-photo"></div>
+
+              <div class="scan-lines">
+                <i></i>
+                <i></i>
+                <i></i>
+                <i></i>
+              </div>
+
+              <div class="laser"></div>
+
+            </div>
+
           </div>
+
+
+          <div class="processing-copy">
+
+            <span class="section-label">
+              Análisis
+            </span>
+
+            <h2 id="progressTitle">
+              Preparando el documento…
+            </h2>
+
+            <p id="progressText">
+              Estamos preparando la imagen
+              para mejorar la lectura.
+            </p>
+
+            <div class="progress-track">
+              <div id="progressBar"></div>
+            </div>
+
+            <div class="progress-status">
+
+              <span id="progressPercent">
+                8%
+              </span>
+
+              <span>
+                No cierres esta ventana
+              </span>
+
+            </div>
+
+
+            <div class="process-list">
+
+              <div
+                id="p1"
+                class="process-item active"
+              >
+
+                <b>1</b>
+
+                <div>
+
+                  <strong>
+                    Preparando imagen
+                  </strong>
+
+                  <span>
+                    Orientación, perspectiva
+                    y tamaño
+                  </span>
+
+                </div>
+
+              </div>
+
+
+              <div
+                id="p2"
+                class="process-item"
+              >
+
+                <b>2</b>
+
+                <div>
+
+                  <strong>
+                    Leyendo contenido
+                  </strong>
+
+                  <span>
+                    OCR sobre el documento
+                  </span>
+
+                </div>
+
+              </div>
+
+
+              <div
+                id="p3"
+                class="process-item"
+              >
+
+                <b>3</b>
+
+                <div>
+
+                  <strong>
+                    Ubicando datos sensibles
+                  </strong>
+
+                  <span>
+                    Número, nombres, fechas
+                    y fotografía
+                  </span>
+
+                </div>
+
+              </div>
+
+            </div>
+
+          </div>
+
         </div>
+
       </section>
 
-      <section class="screen hidden" id="reviewScreen">
+
+      <section
+        class="screen hidden"
+        id="reviewScreen"
+      >
+
         <div class="review-toolbar card">
-          <div><span class="status-dot"></span><div><strong>Análisis completado</strong><span id="summaryText">Revisa los datos antes de censurarlos.</span></div></div>
-          <div class="toolbar-actions"><button class="btn tertiary" id="newBtn">Cambiar documento</button><button class="btn primary" id="goProtectBtn">Continuar a censura <span>→</span></button></div>
+
+          <div>
+
+            <span class="status-dot"></span>
+
+            <div>
+
+              <strong>
+                Análisis completado
+              </strong>
+
+              <span id="summaryText">
+                Revisa los datos antes
+                de censurarlos.
+              </span>
+
+            </div>
+
+          </div>
+
+
+          <div class="toolbar-actions">
+
+            <button
+              class="btn tertiary"
+              id="newBtn"
+            >
+              Cambiar documento
+            </button>
+
+            <button
+              class="btn primary"
+              id="goProtectBtn"
+            >
+              Continuar a censura
+              <span>→</span>
+            </button>
+
+          </div>
+
         </div>
+
 
         <div class="workspace">
+
           <section class="viewer card">
-            <div class="viewer-head"><div><h2>Vista del documento detectado</h2><p id="engineText"></p></div><div class="viewer-tools"><button id="fitBtn" class="icon-btn" title="Ajustar vista">⌗</button><button id="manualBtn" class="btn tertiary small">＋ Añadir zona manual</button></div></div>
-            <div id="documentTabs" class="document-tabs"></div>
-            <div id="documentWarnings" class="document-warnings hidden"></div>
-            <div class="manual-hint hidden" id="manualHint"><strong>Modo de selección manual activo.</strong> Arrastra sobre cualquier dato que quieras ocultar. <button id="cancelManual">Cancelar</button></div>
-            <div class="image-stage" id="imageStage">
-              <div class="image-wrap" id="imageWrap"><img id="previewImg" alt="Vista previa del documento"><div id="boxes" class="boxes"></div><div id="manualLayer" class="manual-layer"></div></div>
+
+            <div class="viewer-head">
+
+              <div>
+
+                <h2>
+                  Vista del documento detectado
+                </h2>
+
+                <p id="engineText"></p>
+
+              </div>
+
+
+              <div class="viewer-tools">
+
+                <button
+                  id="fitBtn"
+                  class="icon-btn"
+                  title="Ajustar vista"
+                >
+                  ⌗
+                </button>
+
+                <button
+                  id="manualBtn"
+                  class="btn tertiary small"
+                >
+                  ＋ Añadir zona manual
+                </button>
+
+              </div>
+
             </div>
-            <div class="viewer-legend"><span><i class="dot high"></i>Riesgo alto</span><span><i class="dot medium"></i>Riesgo medio</span><span><i class="dot manual"></i>Zona manual</span><span class="spacer"></span><span id="rectifiedText"></span></div>
+
+
+            <div
+              id="documentTabs"
+              class="document-tabs"
+            ></div>
+
+
+            <div
+              id="documentWarnings"
+              class="document-warnings hidden"
+            ></div>
+
+
+            <div
+              class="manual-hint hidden"
+              id="manualHint"
+            >
+
+              <strong>
+                Modo de selección manual activo.
+              </strong>
+
+              Arrastra sobre cualquier dato
+              que quieras ocultar.
+
+              <button id="cancelManual">
+                Cancelar
+              </button>
+
+            </div>
+
+
+            <div
+              class="image-stage"
+              id="imageStage"
+            >
+
+              <div
+                class="image-wrap"
+                id="imageWrap"
+              >
+
+                <img
+                  id="previewImg"
+                  alt="Vista previa del documento"
+                />
+
+                <div
+                  id="boxes"
+                  class="boxes"
+                ></div>
+
+                <div
+                  id="manualLayer"
+                  class="manual-layer"
+                ></div>
+
+              </div>
+
+            </div>
+
+
+            <div class="viewer-legend">
+
+              <span>
+                <i class="dot high"></i>
+                Muy sensible
+              </span>
+
+              <span>
+                <i class="dot medium"></i>
+                Sensible
+              </span>
+
+              <span>
+                <i class="dot manual"></i>
+                Zona manual
+              </span>
+
+              <span class="spacer"></span>
+
+              <span id="rectifiedText"></span>
+
+            </div>
+
           </section>
+
 
           <aside class="inspector card">
-            <div class="inspector-head"><div><span class="section-label">Datos encontrados</span><h2><span id="fieldCount">0</span> elementos</h2></div><div class="risk-score" id="riskScore">—</div></div>
-            <div class="quick-actions"><button id="selectRecommended">Seleccionar recomendados</button><button id="clearSelection">Limpiar</button></div>
-            <div class="empty-state hidden" id="emptyFields"><div>!</div><strong>No encontramos campos con suficiente confianza.</strong><p>Puedes añadir zonas manuales directamente sobre la imagen y censurarlas igualmente.</p></div>
-            <div id="fieldList" class="field-list"></div>
-            <div id="manualListWrap" class="manual-list-wrap hidden"><div class="manual-list-title">Zonas manuales <span id="manualCount">0</span></div><div id="manualList"></div></div>
-            <div class="inspector-note">La detección automática es una ayuda. <strong>Revisa siempre visualmente</strong> antes de compartir el resultado.</div>
-          </aside>
-        </div>
-      </section>
 
-      <section class="screen hidden" id="protectScreen">
-        <div class="protect-grid">
-          <div class="card protect-options"><span class="section-label">Configurar censura</span><h2>¿Cómo quieres proteger la copia?</h2><p>Se aplicará únicamente a los campos y zonas seleccionadas.</p>
-            <div class="option-group"><label>Método de censura</label><div class="mode-grid"><label class="mode-option selected"><input type="radio" name="mode" value="black" checked><span class="mode-preview black"></span><div><strong>Bloque sólido</strong><small>Mayor protección visual</small></div></label><label class="mode-option"><input type="radio" name="mode" value="blur"><span class="mode-preview blur"></span><div><strong>Desenfoque fuerte</strong><small>Mantiene el contexto</small></div></label></div></div>
-            <div class="selection-summary"><div><span>Campos automáticos</span><strong id="selectedAuto">0</strong></div><div><span>Zonas manuales</span><strong id="selectedManual">0</strong></div><div class="total"><span>Total a censurar</span><strong id="selectedTotal">0</strong></div></div>
-            <button class="btn danger large full" id="redactBtn">Generar copia censurada</button><button class="btn tertiary full" id="backReviewBtn">← Volver a revisar</button>
-          </div>
-          <div class="card protect-preview"><div class="viewer-head"><div><h2>Elementos seleccionados</h2><p>Vista previa del documento activo. La copia final protege todos los documentos detectados.</p></div></div><div id="protectDocumentLabel" class="protect-document-label"></div><div class="image-stage compact"><div class="image-wrap" id="protectImageWrap"><img id="protectImg" alt="Previsualización"><div id="protectBoxes" class="boxes"></div></div></div></div>
-        </div>
-      </section>
+            <div class="inspector-head">
 
-      <section class="screen hidden" id="doneScreen">
-        <div class="done-grid">
-          <div class="card final-preview"><div class="viewer-head"><div><span class="section-label">Resultado</span><h2>Copia protegida</h2><p>Comprueba que todos los datos necesarios estén correctamente cubiertos.</p></div></div><div class="image-stage"><img id="redactedImg" alt="Documento censurado"></div></div>
-          <aside class="card done-panel"><div class="success-icon">✓</div><h2>La copia censurada está lista</h2><p>El archivo original no fue modificado. Esta es una nueva versión con las zonas seleccionadas ocultas.</p><div class="done-stats"><div><span>Protecciones aplicadas</span><strong id="doneCount">0</strong></div><div><span>Formato</span><strong id="doneFormat">PNG</strong></div></div><a id="downloadBtn" class="btn primary large full" download>Descargar copia protegida</a><div id="feedbackCard" class="feedback-card hidden" aria-live="polite"><div class="feedback-icon">♡</div><div class="feedback-copy"><span class="section-label">Evaluación del proyecto</span><h3>Tu opinión nos ayuda a validar PRIVADOC</h3><p>Si ya descargaste tu copia segura, cuéntanos cómo fue la experiencia. Toma aproximadamente 2 minutos y nos ayuda a medir facilidad de uso, confianza y aceptación del software.</p></div><div class="feedback-actions"><button id="feedbackBtn" class="btn feedback-primary" type="button">Responder encuesta · 2 min ↗</button><button id="feedbackLaterBtn" class="text-btn" type="button">Ahora no</button></div></div><button class="btn tertiary full" id="redoBtn">Ajustar censura</button><button class="text-btn" id="anotherBtn">Proteger otro documento</button></aside>
-        </div>
-      </section>
+              <div>
 
-      <section class="screen hidden" id="settingsScreen">
-        <div class="utility-grid settings-layout">
-          <section class="card utility-card settings-card">
-            <span class="section-label">Preferencias</span><h2>Configuración de privacidad</h2><p>Estas opciones se guardan únicamente en este navegador y modifican la experiencia de uso, no el motor de detección.</p>
-            <div class="settings-list">
-              <label class="setting-row" for="defaultModeSetting"><div><strong>Método de censura por defecto</strong><span>Elige cómo se preseleccionará la protección visual.</span></div><select id="defaultModeSetting"><option value="black">Bloque sólido</option><option value="blur">Desenfoque fuerte</option></select></label>
-              <label class="setting-row toggle-row"><div><strong>Seleccionar recomendaciones automáticamente</strong><span>Marca inicialmente los campos que PRIVADOC recomienda proteger.</span></div><input id="autoSelectSetting" type="checkbox"></label>
-              <label class="setting-row toggle-row"><div><strong>Recordar el último tipo de documento</strong><span>Al volver a abrir PRIVADOC conserva DNI azul, amarillo, electrónico o comprobantes.</span></div><input id="rememberTypeSetting" type="checkbox"></label>
+                <span class="section-label">
+                  Datos encontrados
+                </span>
+
+                <h2>
+                  <span id="fieldCount">
+                    0
+                  </span>
+                  elementos
+                </h2>
+
+              </div>
+
+              <div
+                class="risk-score"
+                id="riskScore"
+              >
+                —
+              </div>
+
             </div>
-            <div class="settings-actions"><span id="settingsSaved" class="settings-saved">Preferencias guardadas localmente</span><button class="btn tertiary" id="resetSettingsBtn">Restablecer valores</button></div>
-          </section>
-          <aside class="card privacy-card"><div class="privacy-shield">⚙</div><h3>Qué no cambia</h3><p>Las preferencias no reducen la precisión ni alteran los módulos ya afinados de DNI y comprobantes.</p><ul><li>OCR local intacto</li><li>Normalización intacta</li><li>PDF multipágina intacto</li><li>Censura manual disponible</li></ul></aside>
+
+
+            <div class="quick-actions">
+
+              <button id="selectRecommended">
+                Seleccionar recomendados
+              </button>
+
+              <button id="clearSelection">
+                Limpiar
+              </button>
+
+            </div>
+
+
+            <div
+              class="empty-state hidden"
+              id="emptyFields"
+            >
+
+              <div>!</div>
+
+              <strong>
+                No encontramos campos
+                con suficiente confianza.
+              </strong>
+
+              <p>
+                Puedes añadir zonas manuales
+                directamente sobre la imagen.
+              </p>
+
+            </div>
+
+
+            <div
+              id="fieldList"
+              class="field-list"
+            ></div>
+
+
+            <div
+              id="manualListWrap"
+              class="manual-list-wrap hidden"
+            >
+
+              <div class="manual-list-title">
+
+                Zonas manuales
+
+                <span id="manualCount">
+                  0
+                </span>
+
+              </div>
+
+              <div id="manualList"></div>
+
+            </div>
+
+
+            <div class="inspector-note">
+
+              La detección automática es una ayuda.
+
+              <strong>
+                Revisa siempre visualmente
+              </strong>
+
+              antes de compartir el resultado.
+
+            </div>
+
+          </aside>
+
         </div>
+
       </section>
+
+
+      <section
+        class="screen hidden"
+        id="protectScreen"
+      >
+
+        <div class="protect-grid">
+
+          <div class="card protect-options">
+
+            <span class="section-label">
+              Configurar censura
+            </span>
+
+            <h2>
+              ¿Cómo quieres proteger la copia?
+            </h2>
+
+            <p>
+              Se aplicará únicamente a los campos
+              y zonas seleccionadas.
+            </p>
+
+
+            <div class="option-group">
+
+              <label>
+                Método de censura
+              </label>
+
+              <div class="mode-grid">
+
+                <label
+                  class="mode-option selected"
+                >
+
+                  <input
+                    type="radio"
+                    name="mode"
+                    value="black"
+                    checked
+                  />
+
+                  <span
+                    class="mode-preview black"
+                  ></span>
+
+                  <div>
+
+                    <strong>
+                      Bloque sólido
+                    </strong>
+
+                    <small>
+                      Mayor protección visual
+                    </small>
+
+                  </div>
+
+                </label>
+
+
+                <label class="mode-option">
+
+                  <input
+                    type="radio"
+                    name="mode"
+                    value="blur"
+                  />
+
+                  <span
+                    class="mode-preview blur"
+                  ></span>
+
+                  <div>
+
+                    <strong>
+                      Desenfoque fuerte
+                    </strong>
+
+                    <small>
+                      Mantiene el contexto
+                    </small>
+
+                  </div>
+
+                </label>
+
+              </div>
+
+            </div>
+
+
+            <div class="selection-summary">
+
+              <div>
+
+                <span>
+                  Campos automáticos
+                </span>
+
+                <strong id="selectedAuto">
+                  0
+                </strong>
+
+              </div>
+
+
+              <div>
+
+                <span>
+                  Zonas manuales
+                </span>
+
+                <strong id="selectedManual">
+                  0
+                </strong>
+
+              </div>
+
+
+              <div class="total">
+
+                <span>
+                  Total a censurar
+                </span>
+
+                <strong id="selectedTotal">
+                  0
+                </strong>
+
+              </div>
+
+            </div>
+
+
+            <button
+              class="btn danger large full"
+              id="redactBtn"
+            >
+              Generar copia censurada
+            </button>
+
+            <button
+              class="btn tertiary full"
+              id="backReviewBtn"
+            >
+              ← Volver a revisar
+            </button>
+
+          </div>
+
+
+          <div class="card protect-preview">
+
+            <div class="viewer-head">
+
+              <div>
+
+                <h2>
+                  Elementos seleccionados
+                </h2>
+
+                <p>
+                  Vista previa del documento activo.
+                  La copia final protege todos los
+                  documentos detectados.
+                </p>
+
+              </div>
+
+            </div>
+
+
+            <div
+              id="protectDocumentLabel"
+              class="protect-document-label"
+            ></div>
+
+
+            <div class="image-stage compact">
+
+              <div
+                class="image-wrap"
+                id="protectImageWrap"
+              >
+
+                <img
+                  id="protectImg"
+                  alt="Previsualización"
+                />
+
+                <div
+                  id="protectBoxes"
+                  class="boxes"
+                ></div>
+
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </section>
+
+
+      <section
+        class="screen hidden"
+        id="doneScreen"
+      >
+
+        <div class="done-grid">
+
+          <div class="card final-preview">
+
+            <div class="viewer-head">
+
+              <div>
+
+                <span class="section-label">
+                  Resultado
+                </span>
+
+                <h2>
+                  Copia protegida
+                </h2>
+
+                <p>
+                  Comprueba que todos los datos
+                  necesarios estén correctamente
+                  cubiertos.
+                </p>
+
+              </div>
+
+            </div>
+
+
+            <div class="image-stage">
+
+              <img
+                id="redactedImg"
+                alt="Documento censurado"
+              />
+
+            </div>
+
+          </div>
+
+
+          <aside class="card done-panel">
+
+            <div class="success-icon">
+              ✓
+            </div>
+
+            <h2>
+              La copia censurada está lista
+            </h2>
+
+            <p>
+              El archivo original no fue modificado.
+              Esta es una nueva versión con las zonas
+              seleccionadas ocultas.
+            </p>
+
+
+            <div class="done-stats">
+
+              <div>
+
+                <span>
+                  Protecciones aplicadas
+                </span>
+
+                <strong id="doneCount">
+                  0
+                </strong>
+
+              </div>
+
+
+              <div>
+
+                <span>
+                  Formato
+                </span>
+
+                <strong id="doneFormat">
+                  PNG
+                </strong>
+
+              </div>
+
+            </div>
+
+
+            <a
+              id="downloadBtn"
+              class="btn primary large full"
+              download
+            >
+              Descargar copia protegida
+            </a>
+
+
+            <div
+              id="feedbackCard"
+              class="
+                feedback-card
+                hidden
+                feedback-highlight
+              "
+              aria-live="polite"
+            >
+
+              <div class="feedback-icon">
+                ★
+              </div>
+
+
+              <div class="feedback-copy">
+
+                <span class="section-label">
+                  Tu experiencia cuenta
+                </span>
+
+                <h3>
+                  ¿Cómo fue tu experiencia
+                  con PRIVADOC?
+                </h3>
+
+
+                <div
+                  class="feedback-rating-preview"
+                  aria-hidden="true"
+                >
+
+                  <span>★</span>
+                  <span>★</span>
+                  <span>★</span>
+                  <span>★</span>
+                  <span>★</span>
+
+                  <b>
+                    1–5
+                  </b>
+
+                </div>
+
+
+                <p>
+                  Ya terminaste el proceso.
+                  Ayúdanos con una encuesta breve
+                  para medir la facilidad de uso,
+                  la confianza y la aceptación
+                  del software.
+                  Usa una escala de 1 a 5 estrellas:
+                  1 = Muy deficiente y
+                  5 = Excelente.
+                </p>
+
+                <strong class="feedback-time">
+                  Te tomará aproximadamente
+                  2 minutos.
+                </strong>
+
+              </div>
+
+
+              <div class="feedback-actions">
+
+                <button
+                  id="feedbackBtn"
+                  class="btn feedback-primary"
+                  type="button"
+                >
+                  Calificar mi experiencia ↗
+                </button>
+
+                <button
+                  id="feedbackLaterBtn"
+                  class="text-btn"
+                  type="button"
+                >
+                  Ahora no
+                </button>
+
+              </div>
+
+            </div>
+
+
+            <button
+              class="btn tertiary full"
+              id="redoBtn"
+            >
+              Ajustar censura
+            </button>
+
+            <button
+              class="text-btn"
+              id="anotherBtn"
+            >
+              Proteger otro documento
+            </button>
+
+          </aside>
+
+        </div>
+
+      </section>
+
+
+      <section
+        class="screen hidden"
+        id="settingsScreen"
+      >
+
+        <div class="utility-grid settings-layout">
+
+          <section
+            class="card utility-card settings-card"
+          >
+
+            <span class="section-label">
+              Preferencias
+            </span>
+
+            <h2>
+              Configuración de privacidad
+            </h2>
+
+            <p>
+              Estas opciones se guardan únicamente
+              en este navegador y modifican
+              la experiencia de uso, no el motor
+              de detección.
+            </p>
+
+
+            <div class="settings-list">
+
+              <label
+                class="setting-row"
+                for="defaultModeSetting"
+              >
+
+                <div>
+
+                  <strong>
+                    Método de censura por defecto
+                  </strong>
+
+                  <span>
+                    Elige cómo se preseleccionará
+                    la protección visual.
+                  </span>
+
+                </div>
+
+                <select id="defaultModeSetting">
+
+                  <option value="black">
+                    Bloque sólido
+                  </option>
+
+                  <option value="blur">
+                    Desenfoque fuerte
+                  </option>
+
+                </select>
+
+              </label>
+
+
+              <label
+                class="setting-row toggle-row"
+              >
+
+                <div>
+
+                  <strong>
+                    Seleccionar recomendaciones
+                    automáticamente
+                  </strong>
+
+                  <span>
+                    Marca inicialmente los campos
+                    que PRIVADOC recomienda proteger.
+                  </span>
+
+                </div>
+
+                <input
+                  id="autoSelectSetting"
+                  type="checkbox"
+                />
+
+              </label>
+
+
+              <label
+                class="setting-row toggle-row"
+              >
+
+                <div>
+
+                  <strong>
+                    Recordar el último tipo
+                    de documento
+                  </strong>
+
+                  <span>
+                    Al volver a abrir PRIVADOC
+                    conserva DNI azul, amarillo,
+                    electrónico o comprobantes.
+                  </span>
+
+                </div>
+
+                <input
+                  id="rememberTypeSetting"
+                  type="checkbox"
+                />
+
+              </label>
+
+            </div>
+
+
+            <div class="settings-actions">
+
+              <span
+                id="settingsSaved"
+                class="settings-saved"
+              >
+                Preferencias guardadas localmente
+              </span>
+
+              <button
+                class="btn tertiary"
+                id="resetSettingsBtn"
+              >
+                Restablecer valores
+              </button>
+
+            </div>
+
+          </section>
+
+
+          <aside class="card privacy-card">
+
+            <div class="privacy-shield">
+              ⚙
+            </div>
+
+            <h3>
+              Qué no cambia
+            </h3>
+
+            <p>
+              Las preferencias no reducen
+              la precisión ni alteran los módulos
+              ya afinados de DNI y comprobantes.
+            </p>
+
+            <ul>
+              <li>OCR intacto</li>
+              <li>Normalización intacta</li>
+              <li>PDF multipágina intacto</li>
+              <li>Censura manual disponible</li>
+            </ul>
+
+          </aside>
+
+        </div>
+
+      </section>
+
     </main>
+
   </div>
-  <script src="/assets/app.js?v=0.10.0"></script>
+
+
+  <script
+    src="/assets/app.js?v=0.10.3"
+  ></script>
+
 </body>
 </html>
