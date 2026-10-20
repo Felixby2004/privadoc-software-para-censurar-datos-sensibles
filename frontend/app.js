@@ -259,7 +259,14 @@ $('#rememberTypeSetting')?.addEventListener('change',e=>saveSettings({rememberDo
 $('#resetSettingsBtn')?.addEventListener('click',()=>{settings={...DEFAULT_SETTINGS};saveSettings(settings);setDocumentType('dni_azul');});
 
 function feedbackFormReady(){
-  return /^https:\/\/docs\.google\.com\/forms\//i.test(FEEDBACK_FORM_URL) || /^https:\/\/forms\.gle\//i.test(FEEDBACK_FORM_URL);
+  try {
+    const url = new URL(FEEDBACK_FORM_URL);
+    return (url.protocol === "https:" || url.protocol === "http:") &&
+           (url.hostname === "docs.google.com" && url.pathname.startsWith("/forms/") ||
+            url.hostname === "forms.gle");
+  } catch (e) {
+    return false;
+  }
 }
 function revealFeedbackPrompt(){
   if(sessionStorage.getItem('privadoc.feedback.dismissed')==='1')return;
