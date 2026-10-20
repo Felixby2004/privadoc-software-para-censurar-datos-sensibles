@@ -25,8 +25,7 @@ def test_feedback_card_exists_but_is_not_intrusive_before_download():
     assert 'id="feedbackCard"' in INDEX
     assert 'feedback-card hidden' in INDEX
     assert 'id="feedbackBtn"' in INDEX
-    assert '¿Cómo fue tu experiencia con PRIVADOC?' in INDEX
-    assert 'feedback-highlight' in INDEX
+    assert 'Tu opinión nos ayuda a validar PRIVADOC' in INDEX
     assert 'feedbackCard' in APP
     assert "#downloadBtn" in APP
     assert "setTimeout(revealFeedbackPrompt" in APP
@@ -48,6 +47,6 @@ def test_mobile_layout_covers_done_and_feedback_sections():
 
 
 def test_frontend_version_is_updated():
-    assert 'v0.10.1' in INDEX
-    assert 'styles.css?v=0.10.1' in INDEX
-    assert 'app.js?v=0.10.1' in INDEX
+    assert 'v0.10.0' in INDEX
+    assert 'styles.css?v=0.10.0' in INDEX
+    assert 'app.js?v=0.10.0' in INDEX

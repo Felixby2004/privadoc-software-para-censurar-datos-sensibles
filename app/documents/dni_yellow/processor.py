@@ -17,7 +17,7 @@ except Exception:
 from app.core.geometry import perspective_matrix, rotate_image, rotation_homography, warp_with_matrix
 from app.core.imaging import image_to_data_url
 from app.core.models import DocumentResult, OCRLine, SensitiveField
-from app.core.ocr import norm_text, run_ocr, run_ocr_resilient, run_ocr_for_scoring, refine_ocr_by_layout
+from app.core.ocr import norm_text, run_ocr, run_ocr_resilient, run_ocr_for_scoring, run_ocr_resilient
 
 BASE = Path(__file__).resolve().parent
 SPEC = json.loads((BASE / "spec.json").read_text(encoding="utf-8"))
@@ -1842,8 +1842,6 @@ def process_yellow_dni(page: np.ndarray, page_index: int, quad: np.ndarray, dete
     warnings: list[str] = []
     try:
         lines, engine = run_ocr_resilient(aligned)
-        structured_defs = SPEC["front_fields"] if side == "front" else SPEC["back_fields"]
-        lines = refine_ocr_by_layout(aligned, lines, structured_defs, max_regions=10)
     except Exception:
         lines, engine = [], "Sin OCR local disponible (solo plantilla geométrica)"
         warnings.append("No se pudo ejecutar OCR local; la interfaz mostrará solo regiones basadas en plantilla.")

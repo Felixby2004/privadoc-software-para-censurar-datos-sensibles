@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Privadoc · Protección de documentos</title>
-  <link rel="stylesheet" href="/assets/styles.css?v=0.10.1" />
+  <link rel="stylesheet" href="/assets/styles.css?v=0.10.0" />
 </head>
 <body>
   <div class="app-shell">
@@ -18,13 +18,11 @@
         <div class="lock-dot">✓</div>
         <div><strong>Procesamiento local</strong><p>El documento se analiza en este equipo/servidor. No se envía a una API externa.</p></div>
       </div>
-      <div class="version">DNI + comprobantes digitales · v0.10.1</div>
     </aside>
 
     <main class="main">
       <header class="page-head">
         <div><span class="kicker" id="pageKicker">Protección de identidad</span><h1 id="pageTitle">Censura datos sensibles antes de compartir un documento</h1><p id="pageSubtitle">Analiza documentos de identidad peruanos, revisa lo encontrado y decide exactamente qué ocultar.</p></div>
-        <div class="local-chip"><span></span>Motor local activo</div>
       </header>
 
       <section class="stepper" id="mainStepper" aria-label="Progreso">
@@ -112,7 +110,7 @@
       <section class="screen hidden" id="doneScreen">
         <div class="done-grid">
           <div class="card final-preview"><div class="viewer-head"><div><span class="section-label">Resultado</span><h2>Copia protegida</h2><p>Comprueba que todos los datos necesarios estén correctamente cubiertos.</p></div></div><div class="image-stage"><img id="redactedImg" alt="Documento censurado"></div></div>
-          <aside class="card done-panel"><div class="success-icon">✓</div><h2>La copia censurada está lista</h2><p>El archivo original no fue modificado. Esta es una nueva versión con las zonas seleccionadas ocultas.</p><div class="done-stats"><div><span>Protecciones aplicadas</span><strong id="doneCount">0</strong></div><div><span>Formato</span><strong id="doneFormat">PNG</strong></div></div><a id="downloadBtn" class="btn primary large full" download>Descargar copia protegida</a><div id="feedbackCard" class="feedback-card hidden feedback-highlight" aria-live="polite"><div class="feedback-icon">★</div><div class="feedback-copy"><span class="section-label">Tu experiencia cuenta</span><h3>¿Cómo fue tu experiencia con PRIVADOC?</h3><div class="feedback-rating-preview" aria-hidden="true"><span>★</span><span>★</span><span>★</span><span>★</span><span>★</span><b>1–10</b></div><p>Ya terminaste el proceso. Ayúdanos con una encuesta breve para medir la facilidad de uso, la confianza y la aceptación del software.</p><strong class="feedback-time">Te tomará aproximadamente 2 minutos.</strong></div><div class="feedback-actions"><button id="feedbackBtn" class="btn feedback-primary" type="button">Calificar mi experiencia ↗</button><button id="feedbackLaterBtn" class="text-btn" type="button">Ahora no</button></div></div><button class="btn tertiary full" id="redoBtn">Ajustar censura</button><button class="text-btn" id="anotherBtn">Proteger otro documento</button></aside>
+          <aside class="card done-panel"><div class="success-icon">✓</div><h2>La copia censurada está lista</h2><p>El archivo original no fue modificado. Esta es una nueva versión con las zonas seleccionadas ocultas.</p><div class="done-stats"><div><span>Protecciones aplicadas</span><strong id="doneCount">0</strong></div><div><span>Formato</span><strong id="doneFormat">PNG</strong></div></div><a id="downloadBtn" class="btn primary large full" download>Descargar copia protegida</a><div id="feedbackCard" class="feedback-card hidden" aria-live="polite"><div class="feedback-icon">♡</div><div class="feedback-copy"><span class="section-label">Evaluación del proyecto</span><h3>Tu opinión nos ayuda a validar PRIVADOC</h3><p>Si ya descargaste tu copia segura, cuéntanos cómo fue la experiencia. Toma aproximadamente 2 minutos y nos ayuda a medir facilidad de uso, confianza y aceptación del software.</p></div><div class="feedback-actions"><button id="feedbackBtn" class="btn feedback-primary" type="button">Responder encuesta · 2 min ↗</button><button id="feedbackLaterBtn" class="text-btn" type="button">Ahora no</button></div></div><button class="btn tertiary full" id="redoBtn">Ajustar censura</button><button class="text-btn" id="anotherBtn">Proteger otro documento</button></aside>
         </div>
       </section>
 
@@ -132,6 +130,6 @@
       </section>
     </main>
   </div>
-  <script src="/assets/app.js?v=0.10.1"></script>
+  <script src="/assets/app.js?v=0.10.0"></script>
 </body>
 </html>

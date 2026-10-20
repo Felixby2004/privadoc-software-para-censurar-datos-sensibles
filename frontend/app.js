@@ -2,7 +2,7 @@ const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 const SETTINGS_KEY = 'privadoc.settings.v1';
 // Reemplaza únicamente este valor cuando tengas el enlace definitivo de Google Forms.
-const FEEDBACK_FORM_URL = 'https://forms.gle/YfzPREX1UhQKS2Pr6';
+const FEEDBACK_FORM_URL = 'https://forms.gle/M6TiZFznK7gffHtK7';
 const DOCUMENT_TYPES = ['dni_azul','dni_amarillo','dni_electronico','comprobantes'];
 const DEFAULT_SETTINGS = Object.freeze({
   defaultRedactionMode:'black',
@@ -253,10 +253,7 @@ function revealFeedbackPrompt(){
   const card=$('#feedbackCard');
   if(!card)return;
   card.classList.remove('hidden');
-  requestAnimationFrame(()=>{
-    card.classList.add('visible');
-    window.setTimeout(()=>card.scrollIntoView({behavior:'smooth',block:'nearest'}),180);
-  });
+  requestAnimationFrame(()=>card.classList.add('visible'));
 }
 $('#downloadBtn')?.addEventListener('click',()=>{
   window.setTimeout(revealFeedbackPrompt,350);

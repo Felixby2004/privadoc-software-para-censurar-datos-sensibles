@@ -248,39 +248,6 @@ def _targeted_ocr(page: np.ndarray, roi: list[int]) -> list[OCRLine]:
     return found
 
 
-def _supplement_receipt_lines(page: np.ndarray, lines: list[OCRLine]) -> list[OCRLine]:
-    """Hace un único rescate estructural cuando faltan anclas básicas del comprobante."""
-    anchors = [
-        _find_label(lines, ["Enviado a", "Destinatario", "Beneficiario", "Recibe"]),
-        _find_label(lines, ["Desde", "Remitente", "Ordenante", "Titular"]),
-        _find_label(lines, ["Número de operación", "Código de operación", "Número de transacción", "Código de transacción", "ID de transacción"]),
-        _find_label(lines, ["Fecha y hora"]),
-        _find_label(lines, ["Comisión"]),
-    ]
-    if sum(x is not None for x in anchors) >= 3:
-        return sorted(lines, key=lambda ln: (ln.box[1], ln.box[0]))
-
-    h, w = page.shape[:2]
-    rescue = _targeted_ocr(page, [int(w * 0.03), int(h * 0.18), int(w * 0.97), int(h * 0.90)])
-    merged = list(lines)
-    for candidate in rescue:
-        nt = norm_text(candidate.text)
-        if not nt:
-            continue
-        duplicate = False
-        for old in merged:
-            if norm_text(old.text) == nt and abs(_cy(old) - _cy(candidate)) < max(12, int(h * 0.012)):
-                duplicate = True
-                if candidate.confidence > old.confidence:
-                    old.text = candidate.text
-                    old.confidence = candidate.confidence
-                    old.box = candidate.box
-                break
-        if not duplicate:
-            merged.append(candidate)
-    return sorted(merged, key=lambda ln: (ln.box[1], ln.box[0]))
-
-
 def _find_phone_near_name(page: np.ndarray, lines: list[OCRLine], label: OCRLine, name_line: OCRLine, section_bottom: int) -> OCRLine | None:
     """Busca el teléfono bajo/alrededor del nombre del destinatario.
 
@@ -480,7 +447,7 @@ def _looks_like_person_name(text: str) -> bool:
 def process_receipt(page: np.ndarray, page_index: int) -> tuple[DocumentResult, str]:
     h, w = page.shape[:2]
     lines, engine = run_ocr_resilient(page)
-    lines = _supplement_receipt_lines(page, lines)
+    lines = sorted(lines, key=lambda ln: (ln.box[1], ln.box[0]))
 
     label_to = _find_label(lines, ["Enviado a", "Destinatario", "Beneficiario", "Recibe"])
     label_from = _find_label(lines, ["Desde"])

@@ -1,4 +1,4 @@
-# PRIVADOC · v1.0
+# PRIVADOC · v0.10.0
 
 PRIVADOC es un prototipo universitario de protección local de datos sensibles en documentos peruanos y comprobantes digitales.
 
@@ -8,12 +8,6 @@ PRIVADOC es un prototipo universitario de protección local de datos sensibles e
 - DNI amarillo de menor de edad.
 - DNI electrónico.
 - Comprobantes bancarios digitales.
-
-## Cambios de v0.10.1
-
-- OCR estructural reforzado por ROI esperada para DNI azul, amarillo y electrónico.
-- La lectura global se conserva y sólo se rescanean campos débiles dentro de la estructura ya calibrada.
-- Invitación final a encuesta más visible y adaptada a evaluación 1–10.
 
 ## Cambios de v0.10.0
 
@@ -41,8 +35,3 @@ uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
 Abre `http://127.0.0.1:8000`.
-
-## Documentación de evaluación y despliegue
-
-- `docs/EVALUACION_USUARIOS.md`: preguntas sugeridas 1–10 y separación entre métricas técnicas y aceptación.
-- `docs/DEPLOY_RENDER.md`: guía de despliegue para evaluación universitaria y advertencias de privacidad.
