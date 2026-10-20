@@ -1,0 +1,10 @@
+fastapi>=0.115,<1
+uvicorn[standard]>=0.30,<1
+python-multipart>=0.0.9
+numpy>=1.26
+opencv-python-headless>=4.9
+Pillow>=10.2
+pypdfium2>=4.30
+rapidocr>=3.9.2
+onnxruntime>=1.17
+pytesseract>=0.3.10

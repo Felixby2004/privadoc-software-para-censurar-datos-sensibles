@@ -1,0 +1,703 @@
+{
+  "id": "dni_amarillo_pe",
+  "version": "0.8.5-yellow-back-family-anchor-fix",
+  "canonical_size": [
+    1100,
+    694
+  ],
+  "front_anchors": [
+    "REPUBLICA DEL PERU",
+    "DOCUMENTO NACIONAL DE IDENTIDAD",
+    "PRIMER APELLIDO",
+    "SEGUNDO APELLIDO",
+    "PRE NOMBRES",
+    "NACIMIENTO FECHA Y UBIGEO",
+    "FECHA INSCRIPCION",
+    "FECHA EMISION",
+    "FECHA CADUCIDAD",
+    "SEXO",
+    "CUARTO NIVEL"
+  ],
+  "back_anchors": [
+    "MADRE",
+    "PADRE",
+    "DNI/LE",
+    "DOMICILIO DEL MENOR",
+    "DISTRITO",
+    "PROVINCIA",
+    "DEPARTAMENTO",
+    "INDICE DER",
+    "OBSERVACIONES",
+    "JEFE NACIONAL"
+  ],
+  "front_fields": [
+    {
+      "id": "photo",
+      "name": "Rostro / fotografía del menor",
+      "roi": [
+        0.055,
+        0.15,
+        0.285,
+        0.65
+      ],
+      "risk": "Alto",
+      "category": "biometric",
+      "default_redact": true,
+      "geometry_fallback": true
+    },
+    {
+      "id": "left_serial",
+      "name": "Código vertical lateral",
+      "roi": [
+        0.02,
+        0.15,
+        0.09,
+        0.63
+      ],
+      "risk": "Medio",
+      "category": "identifier",
+      "default_redact": true,
+      "geometry_fallback": true
+    },
+    {
+      "id": "dni_number",
+      "name": "Número de DNI",
+      "roi": [
+        0.715,
+        0.015,
+        0.958,
+        0.115
+      ],
+      "risk": "Alto",
+      "category": "identifier",
+      "default_redact": true,
+      "pattern": "dni8",
+      "geometry_fallback": true,
+      "value_roi": [
+        0.705,
+        0.105,
+        0.94,
+        0.158
+      ],
+      "ocr_roi": [
+        0.64,
+        0.075,
+        0.95,
+        0.17
+      ]
+    },
+    {
+      "id": "verification_digit",
+      "name": "Dígito verificador",
+      "roi": [
+        0.948,
+        0.015,
+        0.998,
+        0.115
+      ],
+      "value_roi": [
+        0.945,
+        0.105,
+        0.992,
+        0.158
+      ],
+      "risk": "Alto",
+      "category": "identifier",
+      "default_redact": true,
+      "pattern": "verification_digit",
+      "geometry_fallback": true,
+      "ocr_roi": [
+        0.91,
+        0.075,
+        0.998,
+        0.17
+      ]
+    },
+    {
+      "id": "apellido_paterno",
+      "name": "Primer apellido",
+      "roi": [
+        0.285,
+        0.15,
+        0.64,
+        0.27
+      ],
+      "risk": "Alto",
+      "category": "personal",
+      "default_redact": true,
+      "labels": [
+        "PRIMER APELLIDO"
+      ],
+      "geometry_fallback": true,
+      "value_roi": [
+        0.29,
+        0.2,
+        0.63,
+        0.25
+      ],
+      "ocr_roi": [
+        0.28,
+        0.17,
+        0.66,
+        0.26
+      ],
+      "snap_to_text": true,
+      "snap_expand_y": 0.035
+    },
+    {
+      "id": "apellido_materno",
+      "name": "Segundo apellido",
+      "roi": [
+        0.285,
+        0.27,
+        0.64,
+        0.39
+      ],
+      "risk": "Alto",
+      "category": "personal",
+      "default_redact": true,
+      "labels": [
+        "SEGUNDO APELLIDO"
+      ],
+      "geometry_fallback": true,
+      "value_roi": [
+        0.29,
+        0.315,
+        0.63,
+        0.36
+      ],
+      "ocr_roi": [
+        0.28,
+        0.285,
+        0.66,
+        0.37
+      ],
+      "snap_to_text": true,
+      "snap_expand_y": 0.035
+    },
+    {
+      "id": "prenombres",
+      "name": "Pre nombres",
+      "roi": [
+        0.285,
+        0.39,
+        0.7,
+        0.52
+      ],
+      "risk": "Alto",
+      "category": "personal",
+      "default_redact": true,
+      "labels": [
+        "PRE NOMBRES",
+        "PRENOMBRES"
+      ],
+      "geometry_fallback": true,
+      "value_roi": [
+        0.29,
+        0.435,
+        0.68,
+        0.485
+      ],
+      "ocr_roi": [
+        0.28,
+        0.405,
+        0.71,
+        0.5
+      ],
+      "snap_to_text": true,
+      "snap_expand_y": 0.05
+    },
+    {
+      "id": "birth_date",
+      "name": "Fecha de nacimiento",
+      "roi": [
+        0.285,
+        0.5,
+        0.43,
+        0.63
+      ],
+      "value_roi": [
+        0.29,
+        0.555,
+        0.43,
+        0.605
+      ],
+      "risk": "Alto",
+      "category": "personal",
+      "default_redact": true,
+      "pattern": "birth_date",
+      "geometry_fallback": true,
+      "ocr_roi": [
+        0.28,
+        0.525,
+        0.44,
+        0.62
+      ],
+      "snap_to_text": true,
+      "snap_expand_y": 0.055
+    },
+    {
+      "id": "ubigeo",
+      "name": "Ubigeo",
+      "roi": [
+        0.42,
+        0.5,
+        0.58,
+        0.63
+      ],
+      "value_roi": [
+        0.43,
+        0.555,
+        0.55,
+        0.605
+      ],
+      "risk": "Alto",
+      "category": "location",
+      "default_redact": true,
+      "pattern": "ubigeo6",
+      "geometry_fallback": true,
+      "ocr_roi": [
+        0.415,
+        0.525,
+        0.575,
+        0.62
+      ],
+      "snap_to_text": true,
+      "snap_expand_y": 0.055
+    },
+    {
+      "id": "cuarto_nivel",
+      "name": "Cuarto nivel",
+      "roi": [
+        0.56,
+        0.39,
+        0.76,
+        0.54
+      ],
+      "value_roi": [
+        0.585,
+        0.445,
+        0.72,
+        0.495
+      ],
+      "risk": "Medio",
+      "category": "location",
+      "default_redact": true,
+      "pattern": "ubigeo6",
+      "labels": [
+        "CUARTO NIVEL"
+      ],
+      "geometry_fallback": false,
+      "optional_label_required": true,
+      "ocr_roi": [
+        0.56,
+        0.4,
+        0.76,
+        0.52
+      ]
+    },
+    {
+      "id": "sexo",
+      "name": "Sexo",
+      "roi": [
+        0.285,
+        0.59,
+        0.38,
+        0.7
+      ],
+      "risk": "Medio",
+      "category": "personal",
+      "default_redact": false,
+      "labels": [
+        "SEXO"
+      ],
+      "geometry_fallback": true,
+      "value_roi": [
+        0.29,
+        0.625,
+        0.34,
+        0.67
+      ],
+      "ocr_roi": [
+        0.28,
+        0.595,
+        0.36,
+        0.68
+      ],
+      "fixed_value_box": true
+    },
+    {
+      "id": "fecha_inscripcion",
+      "name": "Fecha de inscripción",
+      "roi": [
+        0.78,
+        0.14,
+        0.985,
+        0.28
+      ],
+      "value_roi": [
+        0.82,
+        0.2,
+        0.96,
+        0.255
+      ],
+      "risk": "Alto",
+      "category": "personal",
+      "default_redact": true,
+      "pattern": "date",
+      "labels": [
+        "FECHA INSCRIPCION"
+      ],
+      "geometry_fallback": true
+    },
+    {
+      "id": "fecha_emision",
+      "name": "Fecha de emisión",
+      "roi": [
+        0.78,
+        0.27,
+        0.985,
+        0.4
+      ],
+      "value_roi": [
+        0.82,
+        0.325,
+        0.96,
+        0.38
+      ],
+      "risk": "Alto",
+      "category": "personal",
+      "default_redact": true,
+      "pattern": "date",
+      "labels": [
+        "FECHA EMISION"
+      ],
+      "geometry_fallback": true
+    },
+    {
+      "id": "fecha_caducidad",
+      "name": "Fecha de caducidad",
+      "roi": [
+        0.78,
+        0.39,
+        0.985,
+        0.52
+      ],
+      "value_roi": [
+        0.82,
+        0.445,
+        0.96,
+        0.5
+      ],
+      "risk": "Alto",
+      "category": "personal",
+      "default_redact": true,
+      "pattern": "date",
+      "labels": [
+        "FECHA CADUCIDAD",
+        "CADUCIDAD"
+      ],
+      "geometry_fallback": true
+    },
+    {
+      "id": "mini_photo",
+      "name": "Fotografía secundaria del menor",
+      "roi": [
+        0.84,
+        0.48,
+        0.95,
+        0.7
+      ],
+      "risk": "Alto",
+      "category": "biometric",
+      "default_redact": true,
+      "geometry_fallback": true
+    },
+    {
+      "id": "mrz",
+      "name": "Zona de lectura mecánica",
+      "roi": [
+        0.035,
+        0.715,
+        0.965,
+        0.985
+      ],
+      "risk": "Alto",
+      "category": "identifier",
+      "default_redact": true,
+      "pattern": "mrz",
+      "geometry_fallback": true
+    }
+  ],
+  "back_fields": [
+    {
+      "id": "mother_surname1",
+      "name": "Madre · apellido paterno",
+      "roi": [
+        0.15,
+        0.07,
+        0.48,
+        0.13
+      ],
+      "risk": "Alto",
+      "category": "family",
+      "default_redact": true,
+      "geometry_fallback": true,
+      "family_role": "mother",
+      "family_row": 0
+    },
+    {
+      "id": "mother_surname2",
+      "name": "Madre · apellido materno",
+      "roi": [
+        0.15,
+        0.115,
+        0.48,
+        0.175
+      ],
+      "risk": "Alto",
+      "category": "family",
+      "default_redact": true,
+      "geometry_fallback": true,
+      "family_role": "mother",
+      "family_row": 1
+    },
+    {
+      "id": "mother_given_names",
+      "name": "Madre · prenombres",
+      "roi": [
+        0.15,
+        0.16,
+        0.52,
+        0.22
+      ],
+      "risk": "Alto",
+      "category": "family",
+      "default_redact": true,
+      "geometry_fallback": true,
+      "family_role": "mother",
+      "family_row": 2
+    },
+    {
+      "id": "mother_document",
+      "name": "Documento de la madre",
+      "roi": [
+        0.205,
+        0.205,
+        0.39,
+        0.255
+      ],
+      "risk": "Alto",
+      "category": "identifier",
+      "default_redact": true,
+      "geometry_fallback": true,
+      "family_role": "mother",
+      "family_document": true
+    },
+    {
+      "id": "father_surname1",
+      "name": "Padre · apellido paterno",
+      "roi": [
+        0.15,
+        0.255,
+        0.48,
+        0.315
+      ],
+      "risk": "Alto",
+      "category": "family",
+      "default_redact": true,
+      "geometry_fallback": true,
+      "family_role": "father",
+      "family_row": 0
+    },
+    {
+      "id": "father_surname2",
+      "name": "Padre · apellido materno",
+      "roi": [
+        0.15,
+        0.3,
+        0.48,
+        0.36
+      ],
+      "risk": "Alto",
+      "category": "family",
+      "default_redact": true,
+      "geometry_fallback": true,
+      "family_role": "father",
+      "family_row": 1
+    },
+    {
+      "id": "father_given_names",
+      "name": "Padre · prenombres",
+      "roi": [
+        0.15,
+        0.345,
+        0.52,
+        0.405
+      ],
+      "risk": "Alto",
+      "category": "family",
+      "default_redact": true,
+      "geometry_fallback": true,
+      "family_role": "father",
+      "family_row": 2
+    },
+    {
+      "id": "father_document",
+      "name": "Documento del padre",
+      "roi": [
+        0.205,
+        0.39,
+        0.39,
+        0.44
+      ],
+      "risk": "Alto",
+      "category": "identifier",
+      "default_redact": true,
+      "geometry_fallback": true,
+      "family_role": "father",
+      "family_document": true
+    },
+    {
+      "id": "minor_address",
+      "name": "Domicilio del menor",
+      "roi": [
+        0.07,
+        0.42,
+        0.7,
+        0.53
+      ],
+      "risk": "Alto",
+      "category": "location",
+      "default_redact": true,
+      "labels": [
+        "DOMICILIO DEL MENOR"
+      ],
+      "geometry_fallback": true
+    },
+    {
+      "id": "district",
+      "name": "Distrito",
+      "roi": [
+        0.07,
+        0.55,
+        0.3,
+        0.69
+      ],
+      "risk": "Alto",
+      "category": "location",
+      "default_redact": true,
+      "labels": [
+        "DISTRITO"
+      ],
+      "geometry_fallback": true
+    },
+    {
+      "id": "province",
+      "name": "Provincia",
+      "roi": [
+        0.3,
+        0.55,
+        0.54,
+        0.69
+      ],
+      "risk": "Alto",
+      "category": "location",
+      "default_redact": true,
+      "labels": [
+        "PROVINCIA"
+      ],
+      "geometry_fallback": true
+    },
+    {
+      "id": "department",
+      "name": "Departamento",
+      "roi": [
+        0.57,
+        0.55,
+        0.78,
+        0.69
+      ],
+      "risk": "Alto",
+      "category": "location",
+      "default_redact": true,
+      "labels": [
+        "DEPARTAMENTO"
+      ],
+      "geometry_fallback": true
+    },
+    {
+      "id": "observations",
+      "name": "Observaciones",
+      "roi": [
+        0.07,
+        0.66,
+        0.28,
+        0.73
+      ],
+      "risk": "Medio",
+      "category": "personal",
+      "default_redact": false,
+      "labels": [
+        "OBSERVACIONES"
+      ],
+      "geometry_fallback": false
+    },
+    {
+      "id": "fingerprint",
+      "name": "Huella dactilar",
+      "roi": [
+        0.73,
+        0.02,
+        0.93,
+        0.37
+      ],
+      "risk": "Alto",
+      "category": "biometric",
+      "default_redact": true,
+      "geometry_fallback": true
+    },
+    {
+      "id": "back_serial",
+      "name": "Código lateral / serie",
+      "roi": [
+        0.94,
+        0.03,
+        0.998,
+        0.98
+      ],
+      "risk": "Medio",
+      "category": "identifier",
+      "default_redact": true,
+      "geometry_fallback": true
+    },
+    {
+      "id": "pdf417",
+      "name": "Código PDF417",
+      "roi": [
+        0.06,
+        0.7,
+        0.78,
+        0.985
+      ],
+      "risk": "Alto",
+      "category": "identifier",
+      "default_redact": true,
+      "geometry_fallback": true
+    },
+    {
+      "id": "barcode_vertical",
+      "name": "Código de barras lateral",
+      "roi": [
+        0.86,
+        0.47,
+        0.96,
+        0.93
+      ],
+      "risk": "Alto",
+      "category": "identifier",
+      "default_redact": true,
+      "geometry_fallback": true
+    }
+  ]
+}

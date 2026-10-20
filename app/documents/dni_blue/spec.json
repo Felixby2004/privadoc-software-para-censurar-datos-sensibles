@@ -1,0 +1,616 @@
+{
+  "id": "dni_azul_pe",
+  "version": "0.7.1-sexo-estado-up-again",
+  "canonical_size": [
+    1100,
+    694
+  ],
+  "front_anchors": [
+    "REPUBLICA DEL PERU",
+    "REGISTRO NACIONAL DE IDENTIFICACION Y ESTADO CIVIL",
+    "DOCUMENTO NACIONAL DE IDENTIDAD",
+    "PRIMER APELLIDO",
+    "SEGUNDO APELLIDO",
+    "PRE NOMBRES",
+    "PRENOMBRES",
+    "NACIMIENTO FECHA Y UBIGEO",
+    "FECHA INSCRIPCION",
+    "FECHA EMISION",
+    "FECHA CADUCIDAD",
+    "SEXO",
+    "ESTADO CIVIL"
+  ],
+  "back_anchors": [
+    "CONSTANCIA DE SUFRAGIO",
+    "INDICE DER",
+    "DEPARTAMENTO",
+    "PROVINCIA",
+    "DISTRITO",
+    "DIRECCION",
+    "DONACION DE ORGANOS",
+    "GRUPO DE VOTACION",
+    "JEFE NACIONAL"
+  ],
+  "front_fields": [
+    {
+      "id": "photo",
+      "name": "Fotografía principal",
+      "roi": [
+        0.03,
+        0.12,
+        0.26,
+        0.67
+      ],
+      "risk": "Alto",
+      "category": "biometric",
+      "default_redact": true,
+      "geometry_fallback": true
+    },
+    {
+      "id": "left_serial",
+      "name": "Código vertical lateral",
+      "roi": [
+        0.0,
+        0.12,
+        0.06,
+        0.7
+      ],
+      "risk": "Medio",
+      "category": "identifier",
+      "default_redact": false,
+      "geometry_fallback": true
+    },
+    {
+      "id": "dni_number",
+      "name": "Número de DNI",
+      "roi": [
+        0.715,
+        0.015,
+        0.958,
+        0.115
+      ],
+      "risk": "Alto",
+      "category": "identifier",
+      "default_redact": true,
+      "pattern": "dni8",
+      "geometry_fallback": true,
+      "value_roi": [
+        0.755,
+        0.035,
+        0.955,
+        0.105
+      ]
+    },
+    {
+      "id": "verification_digit",
+      "name": "Dígito verificador",
+      "roi": [
+        0.948,
+        0.015,
+        0.998,
+        0.115
+      ],
+      "value_roi": [
+        0.958,
+        0.035,
+        0.998,
+        0.105
+      ],
+      "risk": "Alto",
+      "category": "identifier",
+      "default_redact": true,
+      "pattern": "verification_digit",
+      "geometry_fallback": true
+    },
+    {
+      "id": "apellido_paterno",
+      "name": "Primer apellido",
+      "roi": [
+        0.25,
+        0.12,
+        0.63,
+        0.24
+      ],
+      "risk": "Alto",
+      "category": "personal",
+      "default_redact": true,
+      "labels": [
+        "PRIMER APELLIDO",
+        "APELLIDO PATERNO"
+      ],
+      "geometry_fallback": true,
+      "value_roi": [
+        0.255,
+        0.166,
+        0.62,
+        0.208
+      ],
+      "ocr_roi": [
+        0.245,
+        0.158,
+        0.66,
+        0.215
+      ],
+      "snap_to_text": true,
+      "snap_expand_y": 0.035
+    },
+    {
+      "id": "apellido_materno",
+      "name": "Segundo apellido",
+      "roi": [
+        0.25,
+        0.25,
+        0.63,
+        0.37
+      ],
+      "risk": "Alto",
+      "category": "personal",
+      "default_redact": true,
+      "labels": [
+        "SEGUNDO APELLIDO",
+        "APELLIDO MATERNO"
+      ],
+      "geometry_fallback": true,
+      "value_roi": [
+        0.255,
+        0.286,
+        0.62,
+        0.327
+      ],
+      "ocr_roi": [
+        0.245,
+        0.278,
+        0.66,
+        0.335
+      ],
+      "snap_to_text": true,
+      "snap_expand_y": 0.035
+    },
+    {
+      "id": "prenombres",
+      "name": "Pre nombres",
+      "roi": [
+        0.25,
+        0.38,
+        0.68,
+        0.52
+      ],
+      "risk": "Alto",
+      "category": "personal",
+      "default_redact": true,
+      "labels": [
+        "PRE NOMBRES",
+        "PRENOMBRES",
+        "NOMBRES"
+      ],
+      "geometry_fallback": true,
+      "value_roi": [
+        0.255,
+        0.385,
+        0.66,
+        0.425
+      ],
+      "ocr_roi": [
+        0.245,
+        0.36,
+        0.7,
+        0.445
+      ],
+      "snap_to_text": true,
+      "snap_expand_y": 0.05
+    },
+    {
+      "id": "birth_date",
+      "name": "Fecha de nacimiento",
+      "roi": [
+        0.25,
+        0.49,
+        0.39,
+        0.61
+      ],
+      "value_roi": [
+        0.255,
+        0.495,
+        0.395,
+        0.535
+      ],
+      "risk": "Alto",
+      "category": "personal",
+      "default_redact": true,
+      "pattern": "birth_date",
+      "geometry_fallback": true,
+      "ocr_roi": [
+        0.245,
+        0.465,
+        0.405,
+        0.56
+      ],
+      "snap_to_text": true,
+      "snap_expand_y": 0.055
+    },
+    {
+      "id": "ubigeo",
+      "name": "Ubigeo",
+      "roi": [
+        0.385,
+        0.49,
+        0.53,
+        0.61
+      ],
+      "value_roi": [
+        0.405,
+        0.495,
+        0.515,
+        0.535
+      ],
+      "risk": "Alto",
+      "category": "location",
+      "default_redact": true,
+      "pattern": "ubigeo6",
+      "geometry_fallback": true,
+      "ocr_roi": [
+        0.395,
+        0.465,
+        0.53,
+        0.56
+      ],
+      "snap_to_text": true,
+      "snap_expand_y": 0.055
+    },
+    {
+      "id": "sexo",
+      "name": "Sexo",
+      "roi": [
+        0.25,
+        0.6,
+        0.35,
+        0.7
+      ],
+      "risk": "Medio",
+      "category": "personal",
+      "default_redact": false,
+      "labels": [
+        "SEXO"
+      ],
+      "geometry_fallback": true,
+      "value_roi": [
+        0.255,
+        0.56,
+        0.31,
+        0.605
+      ],
+      "ocr_roi": [
+        0.245,
+        0.542,
+        0.325,
+        0.618
+      ],
+      "snap_to_text": false,
+      "snap_expand_y": 0.04,
+      "fixed_value_box": true
+    },
+    {
+      "id": "estado_civil",
+      "name": "Estado civil",
+      "roi": [
+        0.36,
+        0.6,
+        0.52,
+        0.7
+      ],
+      "risk": "Medio",
+      "category": "personal",
+      "default_redact": false,
+      "labels": [
+        "ESTADO CIVIL"
+      ],
+      "geometry_fallback": true,
+      "value_roi": [
+        0.365,
+        0.56,
+        0.43,
+        0.605
+      ],
+      "ocr_roi": [
+        0.355,
+        0.542,
+        0.452,
+        0.618
+      ],
+      "snap_to_text": false,
+      "snap_expand_y": 0.04,
+      "fixed_value_box": true
+    },
+    {
+      "id": "fecha_inscripcion",
+      "name": "Fecha de inscripción",
+      "roi": [
+        0.775,
+        0.115,
+        0.985,
+        0.225
+      ],
+      "value_roi": [
+        0.815,
+        0.165,
+        0.95,
+        0.22
+      ],
+      "risk": "Alto",
+      "category": "personal",
+      "default_redact": true,
+      "pattern": "date",
+      "labels": [
+        "FECHA INSCRIPCION"
+      ],
+      "geometry_fallback": true
+    },
+    {
+      "id": "fecha_emision",
+      "name": "Fecha de emisión",
+      "roi": [
+        0.775,
+        0.22,
+        0.985,
+        0.335
+      ],
+      "value_roi": [
+        0.815,
+        0.265,
+        0.95,
+        0.325
+      ],
+      "risk": "Alto",
+      "category": "personal",
+      "default_redact": true,
+      "pattern": "date",
+      "labels": [
+        "FECHA EMISION"
+      ],
+      "geometry_fallback": true
+    },
+    {
+      "id": "fecha_caducidad",
+      "name": "Fecha de caducidad",
+      "roi": [
+        0.775,
+        0.315,
+        0.99,
+        0.45
+      ],
+      "value_roi": [
+        0.81,
+        0.35,
+        0.97,
+        0.42
+      ],
+      "risk": "Alto",
+      "category": "personal",
+      "default_redact": true,
+      "pattern": "date",
+      "labels": [
+        "FECHA CADUCIDAD",
+        "CADUCIDAD"
+      ],
+      "geometry_fallback": true
+    },
+    {
+      "id": "signature",
+      "name": "Firma",
+      "roi": [
+        0.56,
+        0.52,
+        0.78,
+        0.73
+      ],
+      "risk": "Alto",
+      "category": "biometric",
+      "default_redact": true,
+      "geometry_fallback": true
+    },
+    {
+      "id": "mini_photo",
+      "name": "Fotografía secundaria",
+      "roi": [
+        0.84,
+        0.42,
+        0.95,
+        0.68
+      ],
+      "risk": "Alto",
+      "category": "biometric",
+      "default_redact": true,
+      "geometry_fallback": true
+    },
+    {
+      "id": "mrz",
+      "name": "Zona de lectura mecánica",
+      "roi": [
+        0.02,
+        0.73,
+        0.97,
+        0.985
+      ],
+      "risk": "Alto",
+      "category": "identifier",
+      "default_redact": true,
+      "pattern": "mrz",
+      "geometry_fallback": true
+    }
+  ],
+  "back_fields": [
+    {
+      "id": "vote_grid",
+      "name": "Constancias de sufragio",
+      "roi": [
+        0.02,
+        0.03,
+        0.72,
+        0.39
+      ],
+      "risk": "Bajo",
+      "category": "document",
+      "default_redact": false,
+      "geometry_fallback": true
+    },
+    {
+      "id": "fingerprint",
+      "name": "Huella dactilar",
+      "roi": [
+        0.76,
+        0.02,
+        0.94,
+        0.31
+      ],
+      "risk": "Alto",
+      "category": "biometric",
+      "default_redact": true,
+      "geometry_fallback": true
+    },
+    {
+      "id": "back_serial",
+      "name": "Código lateral / serie",
+      "roi": [
+        0.94,
+        0.01,
+        0.998,
+        0.99
+      ],
+      "risk": "Medio",
+      "category": "identifier",
+      "default_redact": true,
+      "geometry_fallback": true
+    },
+    {
+      "id": "department",
+      "name": "Departamento",
+      "roi": [
+        0.02,
+        0.35,
+        0.24,
+        0.52
+      ],
+      "risk": "Medio",
+      "category": "location",
+      "default_redact": true,
+      "labels": [
+        "DEPARTAMENTO"
+      ],
+      "geometry_fallback": true
+    },
+    {
+      "id": "province",
+      "name": "Provincia",
+      "roi": [
+        0.25,
+        0.35,
+        0.53,
+        0.52
+      ],
+      "risk": "Medio",
+      "category": "location",
+      "default_redact": true,
+      "labels": [
+        "PROVINCIA"
+      ],
+      "geometry_fallback": true
+    },
+    {
+      "id": "district",
+      "name": "Distrito",
+      "roi": [
+        0.54,
+        0.35,
+        0.72,
+        0.52
+      ],
+      "risk": "Medio",
+      "category": "location",
+      "default_redact": true,
+      "labels": [
+        "DISTRITO"
+      ],
+      "geometry_fallback": true
+    },
+    {
+      "id": "address",
+      "name": "Dirección",
+      "roi": [
+        0.02,
+        0.48,
+        0.56,
+        0.62
+      ],
+      "risk": "Alto",
+      "category": "location",
+      "default_redact": true,
+      "labels": [
+        "DIRECCION"
+      ],
+      "geometry_fallback": true
+    },
+    {
+      "id": "organ_donation",
+      "name": "Donación de órganos / observaciones",
+      "roi": [
+        0.02,
+        0.6,
+        0.45,
+        0.73
+      ],
+      "risk": "Medio",
+      "category": "personal",
+      "default_redact": false,
+      "labels": [
+        "DONACION DE ORGANOS",
+        "OBSERVACIONES"
+      ],
+      "geometry_fallback": true
+    },
+    {
+      "id": "voting_group",
+      "name": "Grupo de votación",
+      "roi": [
+        0.49,
+        0.61,
+        0.79,
+        0.74
+      ],
+      "risk": "Medio",
+      "category": "identifier",
+      "default_redact": true,
+      "labels": [
+        "GRUPO DE VOTACION"
+      ],
+      "geometry_fallback": true
+    },
+    {
+      "id": "pdf417",
+      "name": "Código PDF417",
+      "roi": [
+        0.02,
+        0.7,
+        0.8,
+        0.985
+      ],
+      "risk": "Alto",
+      "category": "identifier",
+      "default_redact": true,
+      "geometry_fallback": true
+    },
+    {
+      "id": "barcode_vertical",
+      "name": "Código de barras lateral",
+      "roi": [
+        0.88,
+        0.48,
+        0.995,
+        0.985
+      ],
+      "risk": "Alto",
+      "category": "identifier",
+      "default_redact": true,
+      "geometry_fallback": true
+    }
+  ]
+}
