@@ -2,7 +2,7 @@ const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 const SETTINGS_KEY = 'privadoc.settings.v1';
 // Reemplaza únicamente este valor cuando tengas el enlace definitivo de Google Forms.
-const FEEDBACK_FORM_URL = 'GOOGLE_FORMS_URL_AQUI';
+const FEEDBACK_FORM_URL = 'https://forms.gle/r8gJMAmQ57iB7TW79';
 const DOCUMENT_TYPES = ['dni_azul','dni_amarillo','dni_electronico','comprobantes'];
 const DEFAULT_SETTINGS = Object.freeze({
   defaultRedactionMode:'black',
