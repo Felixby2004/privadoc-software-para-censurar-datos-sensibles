@@ -35,3 +35,55 @@
 @media(max-width:1000px){.utility-grid{grid-template-columns:1fr}.privacy-card{position:static}}
 @media(max-width:760px){.sidebar{padding-bottom:10px}.nav{display:flex!important;flex-direction:row;gap:6px;overflow-x:auto;margin-top:8px;padding-bottom:2px}.nav-item{flex:0 0 auto;white-space:nowrap;padding:9px 10px;font-size:11px}.sidebar-info,.version{display:none}.utility-card,.privacy-card{padding:16px}.setting-row{align-items:flex-start;gap:12px}.setting-row select{min-width:130px;max-width:46vw}.settings-actions{flex-direction:column;align-items:stretch}.settings-saved{text-align:center}.done-panel{padding:15px}.feedback-card{grid-template-columns:1fr;padding:13px}.feedback-icon{display:none}.feedback-actions{grid-column:auto;flex-direction:column;align-items:stretch}.feedback-actions .btn,.feedback-actions .text-btn{width:100%;min-height:42px}.feedback-actions .text-btn{margin:0}.final-preview .image-stage{height:min(56vh,520px);min-height:280px}.done-panel h2{font-size:20px}.done-panel>p{font-size:12px}.done-stats>div{font-size:10px}}
 @media(max-width:420px){.main{padding-left:8px;padding-right:8px}.page-head h1{font-size:22px}.local-chip{font-size:10px;padding:7px 9px}.doc-type{padding:12px}.drop-zone{padding:24px 12px}.feedback-copy h3{font-size:14px}.feedback-copy p{font-size:11px}}
+/* Responsive safeguards for narrow screens. Keep document choices readable
+   instead of forcing four compressed columns. */
+@media(max-width:1100px) and (min-width:761px){
+ .doc-types{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+
+@media(max-width:760px){
+ html,body{overflow-x:hidden}
+ .doc-types{grid-template-columns:1fr;gap:9px}
+ .doc-type{grid-template-columns:auto minmax(0,1fr) auto;min-width:0}
+ .doc-type strong,.doc-type small{overflow-wrap:anywhere}
+ .page-head{gap:14px}
+ .page-head>div:first-child{min-width:0}
+ .page-head p{line-height:1.45}
+ .local-chip{align-self:flex-start}
+ .stepper{width:100%;margin:22px 0 16px}
+ .stepper>i{margin:0 7px}
+ .step{min-width:0;gap:7px}
+ .step b{flex:0 0 30px}
+ .step strong{font-size:12px}
+ .review-toolbar{flex-direction:column}
+ .review-toolbar>div:first-child{width:100%;min-width:0}
+ .review-toolbar>div:first-child>div{min-width:0}
+ .review-toolbar span{display:block;line-height:1.35}
+ .toolbar-actions{width:100%}
+ .toolbar-actions .btn{width:100%}
+ .viewer-tools{justify-content:stretch}
+ .viewer-tools .btn{flex:1}
+ .document-tabs{overflow-x:auto;flex-wrap:nowrap;padding-bottom:3px}
+ .document-tab{flex:0 0 auto}
+ .viewer-legend{flex-wrap:wrap;gap:8px 12px}
+ .viewer-legend .spacer{display:none}
+ .image-stage{min-height:240px;padding:8px}
+ .image-stage.compact{min-height:240px}
+ .image-wrap>img{max-height:58vh}
+ .quick-actions{flex-wrap:wrap}
+ .quick-actions button{flex:1;min-height:36px}
+ .field-list{max-height:none}
+ .inspector{position:static}
+ .processing-card{grid-template-columns:1fr}
+ .scan-visual{min-height:250px}
+ .upload-card,.viewer,.inspector,.protect-preview,.protect-options,.final-preview,.done-panel{min-width:0}
+}
+
+@media(max-width:420px){
+ .stepper>i{margin:0 4px}
+ .step strong{font-size:11px}
+ .card-head h2,.protect-options h2,.done-panel h2{font-size:20px}
+ .drop-zone h3{font-size:16px;line-height:1.3}
+ .upload-footer{gap:12px}
+ .privacy-inline{line-height:1.4}
+}
