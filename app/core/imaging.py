@@ -27,7 +27,7 @@ def _resize_for_memory(img: np.ndarray) -> np.ndarray:
     max_side = int(
         os.getenv(
             "PRIVADOC_MAX_IMAGE_SIDE",
-            "2600" if os.getenv("PRIVADOC_LOW_MEMORY") == "1" else "0",
+            "0",
         )
     )
     if max_side <= 0 or max(img.shape[:2]) <= max_side:
@@ -53,14 +53,14 @@ def decode_upload(data: bytes, filename: str, content_type: str | None, max_pdf_
         configured_pages = int(
             os.getenv(
                 "PRIVADOC_MAX_PDF_PAGES",
-                "6" if os.getenv("PRIVADOC_LOW_MEMORY") == "1" else str(max_pdf_pages),
+                str(max_pdf_pages),
             )
         )
         page_limit = max(1, min(max_pdf_pages, configured_pages))
         render_scale = float(
             os.getenv(
                 "PRIVADOC_PDF_RENDER_SCALE",
-                "2.0" if os.getenv("PRIVADOC_LOW_MEMORY") == "1" else "3.0",
+                "3.0",
             )
         )
         for i in range(min(len(pdf), page_limit)):

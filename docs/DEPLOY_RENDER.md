@@ -42,7 +42,7 @@ uvicorn app.main:app --host 0.0.0.0 --port $PORT
 ```
 
 6. Health check: `/health` (Render lo consulta periódicamente; esas peticiones son normales y no analizan documentos).
-7. Mantener una sola instancia/worker durante la evaluación porque el prototipo mantiene los análisis temporalmente en memoria. Una instancia procesa hasta dos documentos en paralelo por defecto; los trabajos de OCR se ejecutan en procesos aislados para que un bloqueo no congele el servidor completo.
+7. Mantener una sola instancia/worker durante la evaluación porque el prototipo mantiene los análisis temporalmente en memoria. Una instancia procesa hasta dos documentos en paralelo por defecto; cada trabajo se ejecuta en un proceso aislado y el modelo OCR se carga dentro de ese proceso, que se termina al finalizar para devolver la memoria al sistema.
 
 ### Concurrencia y límites
 
@@ -52,9 +52,8 @@ Estos valores se pueden configurar como variables de entorno en Render:
 - `PRIVADOC_QUEUE_TIMEOUT`: segundos que una solicitud espera un cupo (por defecto `5`). Si no hay cupo responde `429`, en lugar de quedar esperando indefinidamente.
 - `PRIVADOC_JOB_TIMEOUT`: tiempo máximo de análisis o censura en segundos (por defecto `180`). Si un proceso OCR se atasca se termina y responde `504`.
 - `PRIVADOC_CACHE_MAX`: análisis recientes que se conservan para la etapa de censura (por defecto `16`), evitando que los usuarios se expulsen entre sí al trabajar a la vez.
-- `PRIVADOC_LOW_MEMORY=1`: reduce la resolución máxima de imágenes a 2600 px, renderiza los PDF a 2x y limita los PDF a 6 páginas. Es recomendable activarlo en planes con poca memoria.
-- `PRIVADOC_MAX_IMAGE_SIDE`: permite ajustar la dimensión máxima de las imágenes decodificadas cuando el valor por defecto no es adecuado.
-- `PRIVADOC_PDF_RENDER_SCALE` y `PRIVADOC_MAX_PDF_PAGES`: permiten ajustar la resolución y el número máximo de páginas de los PDF.
+- `PRIVADOC_MAX_IMAGE_SIDE`: opcional; por defecto no reduce las imágenes. Solo debe configurarse si se desea un límite explícito.
+- `PRIVADOC_PDF_RENDER_SCALE` y `PRIVADOC_MAX_PDF_PAGES`: opcionales; por defecto conservan la resolución 3x y el límite de 10 páginas.
 
 No se debe aumentar `PRIVADOC_MAX_CONCURRENT` sin comprobar la memoria disponible: cada proceso puede cargar el modelo OCR y conservar temporalmente las páginas del documento.
 

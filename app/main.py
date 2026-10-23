@@ -95,8 +95,6 @@ JOB_TIMEOUT_SECONDS = max(
     ),
 )
 
-LOW_MEMORY_MODE = os.getenv("PRIVADOC_LOW_MEMORY", "0") == "1"
-
 CACHE_TTL_SECONDS = max(
     120,
     int(
@@ -219,12 +217,7 @@ async def _run_job(
     function: Callable[..., Any],
     args: tuple[Any, ...],
 ) -> Any:
-    """Evita duplicar el modelo OCR en instancias Render con poca memoria."""
-    if LOW_MEMORY_MODE:
-        return await asyncio.wait_for(
-            asyncio.to_thread(function, *args),
-            timeout=JOB_TIMEOUT_SECONDS,
-        )
+    """Ejecuta cada trabajo en un proceso que libera OCR al terminar."""
     return await asyncio.to_thread(
         _run_isolated,
         function,

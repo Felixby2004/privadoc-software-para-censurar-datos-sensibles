@@ -20,11 +20,20 @@ except Exception:
 
 
 _ENGINE = None
-if RapidOCR is not None:
-    try:
-        _ENGINE = RapidOCR()
-    except Exception:
-        _ENGINE = None
+_ENGINE_INITIALIZED = False
+
+
+def _get_engine():
+    global _ENGINE, _ENGINE_INITIALIZED
+    if _ENGINE_INITIALIZED:
+        return _ENGINE
+    _ENGINE_INITIALIZED = True
+    if RapidOCR is not None:
+        try:
+            _ENGINE = RapidOCR()
+        except Exception:
+            _ENGINE = None
+    return _ENGINE
 
 
 def clean_text(s: str) -> str:
@@ -45,7 +54,10 @@ def _box_from_poly(poly: Any) -> list[int]:
 
 
 def _rapid(img: np.ndarray) -> list[OCRLine]:
-    raw = _ENGINE(img)
+    engine = _get_engine()
+    if engine is None:
+        return []
+    raw = engine(img)
     out: list[OCRLine] = []
     if hasattr(raw, "boxes") and hasattr(raw, "txts") and hasattr(raw, "scores"):
         boxes = getattr(raw, "boxes", None)
@@ -107,7 +119,7 @@ def _tesseract(img: np.ndarray) -> list[OCRLine]:
 
 
 def _run_single_engine(img: np.ndarray) -> tuple[list[OCRLine], str]:
-    if _ENGINE is not None:
+    if _get_engine() is not None:
         return _rapid(img), "RapidOCR 3.x / ONNX Runtime local"
     out = _tesseract(img)
     if out:
