@@ -42,7 +42,18 @@ uvicorn app.main:app --host 0.0.0.0 --port $PORT
 ```
 
 6. Health check: `/api/health`.
-7. Mantener una sola instancia/worker durante la evaluación porque el prototipo mantiene los análisis temporalmente en memoria.
+7. Mantener una sola instancia/worker durante la evaluación porque el prototipo mantiene los análisis temporalmente en memoria. Una instancia procesa hasta dos documentos en paralelo por defecto; los trabajos de OCR se ejecutan en procesos aislados para que un bloqueo no congele el servidor completo.
+
+### Concurrencia y límites
+
+Estos valores se pueden configurar como variables de entorno en Render:
+
+- `PRIVADOC_MAX_CONCURRENT`: trabajos simultáneos (por defecto `2`). En una instancia con poca memoria se puede bajar a `1`.
+- `PRIVADOC_QUEUE_TIMEOUT`: segundos que una solicitud espera un cupo (por defecto `5`). Si no hay cupo responde `429`, en lugar de quedar esperando indefinidamente.
+- `PRIVADOC_JOB_TIMEOUT`: tiempo máximo de análisis o censura en segundos (por defecto `180`). Si un proceso OCR se atasca se termina y responde `504`.
+- `PRIVADOC_CACHE_MAX`: análisis recientes que se conservan para la etapa de censura (por defecto `16`), evitando que los usuarios se expulsen entre sí al trabajar a la vez.
+
+No se debe aumentar `PRIVADOC_MAX_CONCURRENT` sin comprobar la memoria disponible: cada proceso puede cargar el modelo OCR y conservar temporalmente las páginas del documento.
 
 ## 4. Verificar
 

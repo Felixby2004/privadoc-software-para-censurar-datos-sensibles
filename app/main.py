@@ -4,10 +4,12 @@ import asyncio
 import base64
 import gc
 import logging
+import multiprocessing
 import os
 import time
+from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import cv2
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
@@ -21,7 +23,7 @@ from app.services.pipeline import analyze_document, redact_analysis
 BASE = Path(__file__).resolve().parent.parent
 FRONTEND = BASE / "frontend"
 
-VERSION = "0.10.3"
+VERSION = "0.10.4"
 
 SUPPORTED = {
     "dni_azul",
@@ -68,7 +70,27 @@ MAX_CONCURRENT_JOBS = max(
     int(
         os.getenv(
             "PRIVADOC_MAX_CONCURRENT",
-            "1",
+            "2",
+        )
+    ),
+)
+
+JOB_QUEUE_TIMEOUT_SECONDS = max(
+    1,
+    int(
+        os.getenv(
+            "PRIVADOC_QUEUE_TIMEOUT",
+            "5",
+        )
+    ),
+)
+
+JOB_TIMEOUT_SECONDS = max(
+    30,
+    int(
+        os.getenv(
+            "PRIVADOC_JOB_TIMEOUT",
+            "180",
         )
     ),
 )
@@ -88,7 +110,7 @@ CACHE_MAX_ITEMS = max(
     int(
         os.getenv(
             "PRIVADOC_CACHE_MAX",
-            "2",
+            "16",
         )
     ),
 )
@@ -100,6 +122,95 @@ CPU_SLOTS = asyncio.Semaphore(
 CACHE_LOCK = asyncio.Lock()
 
 CACHE: dict[str, dict[str, Any]] = {}
+
+
+def _job_worker(
+    connection: Any,
+    function: Callable[..., Any],
+    args: tuple[Any, ...],
+) -> None:
+    """Ejecuta OCR fuera del proceso web para poder terminar un trabajo atascado."""
+    try:
+        result = function(*args)
+        connection.send(("ok", result))
+    except BaseException as exc:
+        try:
+            connection.send(
+                (
+                    "error",
+                    f"{type(exc).__name__}: {exc}",
+                )
+            )
+        except (BrokenPipeError, EOFError, OSError):
+            pass
+    finally:
+        connection.close()
+
+
+def _run_isolated(
+    function: Callable[..., Any],
+    args: tuple[Any, ...],
+    timeout: int,
+) -> Any:
+    """Aísla OCR/OpenCV para que un bloqueo no deje inutilizable el servidor."""
+    context = multiprocessing.get_context("spawn")
+    parent_connection, child_connection = context.Pipe(duplex=False)
+    process = context.Process(
+        target=_job_worker,
+        args=(child_connection, function, args),
+    )
+    process.start()
+    child_connection.close()
+
+    try:
+        if not parent_connection.poll(timeout):
+            if process.is_alive():
+                process.terminate()
+            process.join(5)
+            if process.is_alive():
+                process.kill()
+                process.join()
+            raise TimeoutError(
+                f"El procesamiento superó el límite de {timeout} segundos."
+            )
+
+        try:
+            status, payload = parent_connection.recv()
+        except (EOFError, OSError) as exc:
+            raise RuntimeError(
+                "El proceso de análisis terminó sin devolver un resultado."
+            ) from exc
+
+        if status == "error":
+            raise RuntimeError(str(payload))
+        return payload
+    finally:
+        parent_connection.close()
+        if process.is_alive():
+            process.terminate()
+        process.join(5)
+
+
+@asynccontextmanager
+async def _job_slot():
+    try:
+        await asyncio.wait_for(
+            CPU_SLOTS.acquire(),
+            timeout=JOB_QUEUE_TIMEOUT_SECONDS,
+        )
+    except asyncio.TimeoutError as exc:
+        raise HTTPException(
+            status_code=429,
+            detail=(
+                "El servidor está procesando otros documentos. "
+                "Espera unos segundos y vuelve a intentarlo."
+            ),
+        ) from exc
+
+    try:
+        yield
+    finally:
+        CPU_SLOTS.release()
 
 
 def _cleanup_cache_locked() -> None:
@@ -270,6 +381,12 @@ async def api_health():
         "max_concurrent_jobs":
             MAX_CONCURRENT_JOBS,
 
+        "queue_timeout_seconds":
+            JOB_QUEUE_TIMEOUT_SECONDS,
+
+        "job_timeout_seconds":
+            JOB_TIMEOUT_SECONDS,
+
         "active_sessions":
             active_sessions,
 
@@ -314,7 +431,7 @@ async def analyze(
             ),
         )
 
-    async with CPU_SLOTS:
+    async with _job_slot():
 
         raw = await file.read()
 
@@ -360,12 +477,16 @@ async def analyze(
             )
 
             result = await asyncio.to_thread(
+                _run_isolated,
                 analyze_document,
-                raw,
-                file.filename
-                or "documento",
-                file.content_type,
-                document_type,
+                (
+                    raw,
+                    file.filename
+                    or "documento",
+                    file.content_type,
+                    document_type,
+                ),
+                JOB_TIMEOUT_SECONDS,
             )
 
             logger.info(
@@ -402,6 +523,20 @@ async def analyze(
                     "este archivo. Prueba con "
                     "una imagen o PDF de menor "
                     "resolución."
+                ),
+            )
+
+        except TimeoutError:
+
+            logger.exception(
+                "[PRIVADOC] Timeout durante analyze"
+            )
+
+            raise HTTPException(
+                status_code=504,
+                detail=(
+                    "El análisis tardó demasiado y "
+                    "se canceló para no bloquear el servidor."
                 ),
             )
 
@@ -531,7 +666,7 @@ async def redact(
             ),
         )
 
-    async with CPU_SLOTS:
+    async with _job_slot():
 
         try:
 
@@ -542,10 +677,14 @@ async def redact(
                 payload,
                 filename,
             ) = await asyncio.to_thread(
+                _run_isolated,
                 redact_analysis,
-                item,
-                clean,
-                req.mode,
+                (
+                    item,
+                    clean,
+                    req.mode,
+                ),
+                JOB_TIMEOUT_SECONDS,
             )
 
         except MemoryError:
@@ -556,6 +695,20 @@ async def redact(
                     "El servidor no tuvo "
                     "memoria suficiente para "
                     "generar la copia protegida."
+                ),
+            )
+
+        except TimeoutError:
+
+            logger.exception(
+                "[PRIVADOC] Timeout durante redact"
+            )
+
+            raise HTTPException(
+                status_code=504,
+                detail=(
+                    "La generación de la copia tardó demasiado "
+                    "y se canceló para no bloquear el servidor."
                 ),
             )
 
