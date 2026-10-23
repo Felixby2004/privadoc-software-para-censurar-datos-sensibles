@@ -33,6 +33,7 @@ let analysis = null;
 let activeDocIndex = 0;
 let manualMode = false;
 let progressTimer = null;
+let analysisInFlight = false;
 let resizeBound = false;
 let lastProtectionScreen = 'uploadScreen';
 let currentView = 'protection';
@@ -63,7 +64,9 @@ async function readApiResponse(response, fallbackMessage){
   }
   if(!response.ok){
     const detail=data?.detail || fallbackMessage || `El servidor no pudo completar la solicitud (${response.status}).`;
-    throw new Error(detail);
+    const error=new Error(detail);
+    error.status=response.status;
+    throw error;
   }
   if(!data){
     throw new Error('El servidor interrumpió el procesamiento antes de responder. Puede estar temporalmente ocupado, reiniciándose o sin recursos suficientes. Intenta nuevamente.');
@@ -132,7 +135,10 @@ function startProgress(){
 function finishProgress(){clearInterval(progressTimer);$('#progressBar').style.width='100%';$('#progressPercent').textContent='100%';$('#progressTitle').textContent='Análisis completado';$('#progressText').textContent='Ya puedes revisar cada documento detectado.';$$('.process-item').forEach(x=>{x.classList.remove('active');x.classList.add('done')});}
 
 $('#analyzeBtn').addEventListener('click',async()=>{
-  if(!selectedFile)return; startProgress();
+  if(!selectedFile || analysisInFlight)return;
+  analysisInFlight=true;
+  $('#analyzeBtn').disabled=true;
+  startProgress();
   const fd=new FormData(); fd.append('file',selectedFile); fd.append('document_type',selectedDocumentType);
   try{
     const r=await fetch('/api/analyze',{method:'POST',body:fd}); const d=await readApiResponse(r,'No se pudo analizar el documento.');
@@ -155,7 +161,20 @@ $('#analyzeBtn').addEventListener('click',async()=>{
         alert('El análisis terminó, pero la interfaz no pudo mostrar el resultado: '+(err?.message||err));
       }
     },250);
-  }catch(e){clearInterval(progressTimer);showScreen('uploadScreen');alert(e.message)}
+  }catch(e){
+    clearInterval(progressTimer);
+    showScreen('uploadScreen');
+    if(e?.status===429){
+      alert('El servidor ya está procesando otro documento. Espera unos segundos y vuelve a intentarlo.');
+    }else if(e?.status===502 || e?.status===503){
+      alert('El servidor se reinició o se quedó sin recursos durante el análisis. Prueba con una imagen más pequeña o vuelve a intentarlo en unos segundos.');
+    }else{
+      alert(e.message);
+    }
+  }finally{
+    analysisInFlight=false;
+    $('#analyzeBtn').disabled=!selectedFile;
+  }
 });
 
 function renderTabs(){

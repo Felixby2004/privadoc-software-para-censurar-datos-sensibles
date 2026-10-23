@@ -52,6 +52,9 @@ Estos valores se pueden configurar como variables de entorno en Render:
 - `PRIVADOC_QUEUE_TIMEOUT`: segundos que una solicitud espera un cupo (por defecto `5`). Si no hay cupo responde `429`, en lugar de quedar esperando indefinidamente.
 - `PRIVADOC_JOB_TIMEOUT`: tiempo máximo de análisis o censura en segundos (por defecto `180`). Si un proceso OCR se atasca se termina y responde `504`.
 - `PRIVADOC_CACHE_MAX`: análisis recientes que se conservan para la etapa de censura (por defecto `16`), evitando que los usuarios se expulsen entre sí al trabajar a la vez.
+- `PRIVADOC_LOW_MEMORY=1`: reduce la resolución máxima de imágenes a 2600 px, renderiza los PDF a 2x y limita los PDF a 6 páginas. Es recomendable activarlo en planes con poca memoria.
+- `PRIVADOC_MAX_IMAGE_SIDE`: permite ajustar la dimensión máxima de las imágenes decodificadas cuando el valor por defecto no es adecuado.
+- `PRIVADOC_PDF_RENDER_SCALE` y `PRIVADOC_MAX_PDF_PAGES`: permiten ajustar la resolución y el número máximo de páginas de los PDF.
 
 No se debe aumentar `PRIVADOC_MAX_CONCURRENT` sin comprobar la memoria disponible: cada proceso puede cargar el modelo OCR y conservar temporalmente las páginas del documento.
 
