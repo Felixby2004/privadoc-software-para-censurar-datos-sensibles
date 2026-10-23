@@ -41,7 +41,7 @@ pip install -r requirements.txt
 uvicorn app.main:app --host 0.0.0.0 --port $PORT
 ```
 
-6. Health check: `/api/health`.
+6. Health check: `/health` (Render lo consulta periódicamente; esas peticiones son normales y no analizan documentos).
 7. Mantener una sola instancia/worker durante la evaluación porque el prototipo mantiene los análisis temporalmente en memoria. Una instancia procesa hasta dos documentos en paralelo por defecto; los trabajos de OCR se ejecutan en procesos aislados para que un bloqueo no congele el servidor completo.
 
 ### Concurrencia y límites

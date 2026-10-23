@@ -95,6 +95,8 @@ JOB_TIMEOUT_SECONDS = max(
     ),
 )
 
+LOW_MEMORY_MODE = os.getenv("PRIVADOC_LOW_MEMORY", "0") == "1"
+
 CACHE_TTL_SECONDS = max(
     120,
     int(
@@ -211,6 +213,24 @@ async def _job_slot():
         yield
     finally:
         CPU_SLOTS.release()
+
+
+async def _run_job(
+    function: Callable[..., Any],
+    args: tuple[Any, ...],
+) -> Any:
+    """Evita duplicar el modelo OCR en instancias Render con poca memoria."""
+    if LOW_MEMORY_MODE:
+        return await asyncio.wait_for(
+            asyncio.to_thread(function, *args),
+            timeout=JOB_TIMEOUT_SECONDS,
+        )
+    return await asyncio.to_thread(
+        _run_isolated,
+        function,
+        args,
+        JOB_TIMEOUT_SECONDS,
+    )
 
 
 def _cleanup_cache_locked() -> None:
@@ -476,8 +496,7 @@ async def analyze(
                 / (1024 * 1024),
             )
 
-            result = await asyncio.to_thread(
-                _run_isolated,
+            result = await _run_job(
                 analyze_document,
                 (
                     raw,
@@ -486,7 +505,6 @@ async def analyze(
                     file.content_type,
                     document_type,
                 ),
-                JOB_TIMEOUT_SECONDS,
             )
 
             logger.info(
@@ -676,15 +694,13 @@ async def redact(
                 mime,
                 payload,
                 filename,
-            ) = await asyncio.to_thread(
-                _run_isolated,
+            ) = await _run_job(
                 redact_analysis,
                 (
                     item,
                     clean,
                     req.mode,
                 ),
-                JOB_TIMEOUT_SECONDS,
             )
 
         except MemoryError:

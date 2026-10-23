@@ -130,7 +130,20 @@ function startProgress(){
     [95,'Verificando posiciones…','Comprobamos las regiones antes de mostrártelas.',3]
   ];
   $('#progressBar').style.width='8%'; $('#progressPercent').textContent='8%';
-  progressTimer=setInterval(()=>{if(idx>=states.length)return;const [p,t,d,step]=states[idx++];$('#progressBar').style.width=p+'%';$('#progressPercent').textContent=p+'%';$('#progressTitle').textContent=t;$('#progressText').textContent=d;for(let i=1;i<=3;i++){const el=$('#p'+i);el.classList.toggle('done',i<step);el.classList.toggle('active',i===step);}},700);
+  progressTimer=setInterval(()=>{
+    if(idx>=states.length){
+      $('#progressPercent').textContent='…';
+      $('#progressTitle').textContent='Procesando documento…';
+      $('#progressText').textContent='El servidor está terminando el OCR. No cierres esta ventana.';
+      return;
+    }
+    const [p,t,d,step]=states[idx++];
+    $('#progressBar').style.width=p+'%';
+    $('#progressPercent').textContent=p+'%';
+    $('#progressTitle').textContent=t;
+    $('#progressText').textContent=d;
+    for(let i=1;i<=3;i++){const el=$('#p'+i);el.classList.toggle('done',i<step);el.classList.toggle('active',i===step);}
+  },700);
 }
 function finishProgress(){clearInterval(progressTimer);$('#progressBar').style.width='100%';$('#progressPercent').textContent='100%';$('#progressTitle').textContent='Análisis completado';$('#progressText').textContent='Ya puedes revisar cada documento detectado.';$$('.process-item').forEach(x=>{x.classList.remove('active');x.classList.add('done')});}
 
@@ -140,8 +153,10 @@ $('#analyzeBtn').addEventListener('click',async()=>{
   $('#analyzeBtn').disabled=true;
   startProgress();
   const fd=new FormData(); fd.append('file',selectedFile); fd.append('document_type',selectedDocumentType);
+  const controller=new AbortController();
+  const requestTimeout=setTimeout(()=>controller.abort(),210000);
   try{
-    const r=await fetch('/api/analyze',{method:'POST',body:fd}); const d=await readApiResponse(r,'No se pudo analizar el documento.');
+    const r=await fetch('/api/analyze',{method:'POST',body:fd,signal:controller.signal}); const d=await readApiResponse(r,'No se pudo analizar el documento.');
     analysis=d; activeDocIndex=0; selectedByDoc.clear(); manualByDoc.clear();
     if(!Array.isArray(analysis.documents) || analysis.documents.length===0) throw new Error('El backend no devolvió ningún documento procesado.');
     analysis.documents.forEach(x=>{
@@ -164,7 +179,9 @@ $('#analyzeBtn').addEventListener('click',async()=>{
   }catch(e){
     clearInterval(progressTimer);
     showScreen('uploadScreen');
-    if(e?.status===429){
+    if(e?.name==='AbortError'){
+      alert('El análisis tardó demasiado y se canceló. Prueba con una imagen más pequeña o vuelve a intentarlo.');
+    }else if(e?.status===429){
       alert('El servidor ya está procesando otro documento. Espera unos segundos y vuelve a intentarlo.');
     }else if(e?.status===502 || e?.status===503){
       alert('El servidor se reinició o se quedó sin recursos durante el análisis. Prueba con una imagen más pequeña o vuelve a intentarlo en unos segundos.');
@@ -172,6 +189,7 @@ $('#analyzeBtn').addEventListener('click',async()=>{
       alert(e.message);
     }
   }finally{
+    clearTimeout(requestTimeout);
     analysisInFlight=false;
     $('#analyzeBtn').disabled=!selectedFile;
   }
