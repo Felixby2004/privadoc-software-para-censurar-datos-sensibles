@@ -7,6 +7,7 @@ import logging
 import multiprocessing
 import os
 import time
+import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, Callable
@@ -23,7 +24,7 @@ from app.services.pipeline import analyze_document, redact_analysis
 BASE = Path(__file__).resolve().parent.parent
 FRONTEND = BASE / "frontend"
 
-VERSION = "0.10.4"
+VERSION = "0.10.5"
 
 SUPPORTED = {
     "dni_azul",
@@ -122,6 +123,9 @@ CPU_SLOTS = asyncio.Semaphore(
 CACHE_LOCK = asyncio.Lock()
 
 CACHE: dict[str, dict[str, Any]] = {}
+ANALYSIS_JOBS: dict[str, dict[str, Any]] = {}
+ANALYSIS_JOBS_LOCK = asyncio.Lock()
+ANALYSIS_JOB_TTL_SECONDS = max(CACHE_TTL_SECONDS, 900)
 
 
 def _job_worker(
@@ -307,6 +311,119 @@ async def _cache_get(
         return entry["result"]
 
 
+def _public_analysis(result: dict[str, Any]) -> dict[str, Any]:
+    public_docs = [
+        document.public_dict()
+        for document
+        in result["documents"]
+    ]
+    return {
+        "analysis_id": result["analysis_id"],
+        "filename": result["filename"],
+        "source_is_pdf": result["source_is_pdf"],
+        "page_count": result["page_count"],
+        "document_count": len(public_docs),
+        "document_type": result["document_type"],
+        "ocr_engine": result["ocr_engine"],
+        "documents": public_docs,
+    }
+
+
+def _cleanup_analysis_jobs_locked() -> None:
+    cutoff = time.monotonic() - ANALYSIS_JOB_TTL_SECONDS
+    expired = [
+        job_id
+        for job_id, job in ANALYSIS_JOBS.items()
+        if float(job.get("updated_at", 0)) < cutoff
+        and job.get("status") in {"completed", "error"}
+    ]
+    for job_id in expired:
+        ANALYSIS_JOBS.pop(job_id, None)
+
+
+async def _set_analysis_job(
+    job_id: str,
+    **updates: Any,
+) -> None:
+    async with ANALYSIS_JOBS_LOCK:
+        job = ANALYSIS_JOBS.get(job_id)
+        if job is not None:
+            job.update(updates)
+            job["updated_at"] = time.monotonic()
+
+
+async def _run_analysis_job(
+    job_id: str,
+    raw: bytes,
+    filename: str,
+    content_type: str | None,
+    document_type: str,
+) -> None:
+    try:
+        await _set_analysis_job(job_id, status="processing")
+        async with _job_slot():
+            started_at = time.perf_counter()
+            logger.info(
+                "[PRIVADOC] START analyze | type=%s | filename=%s | size=%.2f MB | job=%s",
+                document_type,
+                filename,
+                len(raw) / (1024 * 1024),
+                job_id,
+            )
+            result = await _run_job(
+                analyze_document,
+                (raw, filename, content_type, document_type),
+            )
+            logger.info(
+                "[PRIVADOC] END analyze | type=%s | documents=%s | elapsed=%.2fs | job=%s",
+                document_type,
+                len(result.get("documents", [])),
+                time.perf_counter() - started_at,
+                job_id,
+            )
+            await _cache_put(result["analysis_id"], result)
+            await _set_analysis_job(
+                job_id,
+                status="completed",
+                result=_public_analysis(result),
+            )
+    except HTTPException as exc:
+        logger.warning("[PRIVADOC] Job rejected | job=%s | status=%s | detail=%s", job_id, exc.status_code, exc.detail)
+        await _set_analysis_job(
+            job_id,
+            status="error",
+            error=str(exc.detail),
+            error_status=exc.status_code,
+        )
+    except MemoryError:
+        logger.exception("[PRIVADOC] MemoryError durante analyze | job=%s", job_id)
+        await _set_analysis_job(
+            job_id,
+            status="error",
+            error="El servidor no tiene memoria suficiente para procesar el documento.",
+            error_status=503,
+        )
+    except TimeoutError:
+        logger.exception("[PRIVADOC] Timeout durante analyze | job=%s", job_id)
+        await _set_analysis_job(
+            job_id,
+            status="error",
+            error="El análisis tardó demasiado y se canceló.",
+            error_status=504,
+        )
+    except Exception as exc:
+        logger.exception("[PRIVADOC] Error durante analyze | job=%s", job_id)
+        await _set_analysis_job(
+            job_id,
+            status="error",
+            error=str(exc),
+            error_status=400,
+        )
+    finally:
+        raw = b""
+        gc.collect()
+
+
 # -----------------------------------------------------------------------------
 # MODELOS
 # -----------------------------------------------------------------------------
@@ -444,180 +561,62 @@ async def analyze(
             ),
         )
 
-    async with _job_slot():
+    raw = await file.read()
+    if not raw:
+        raise HTTPException(status_code=400, detail="El archivo está vacío.")
+    if len(raw) > 30 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="El archivo supera 30 MB.")
 
-        raw = await file.read()
-
-        if not raw:
-
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    "El archivo está vacío."
-                ),
-            )
-
-        if (
-            len(raw)
-            > 30 * 1024 * 1024
-        ):
-
-            raise HTTPException(
-                status_code=413,
-                detail=(
-                    "El archivo supera 30 MB."
-                ),
-            )
-
-        try:
-
-            started_at = (
-                time.perf_counter()
-            )
-
-            logger.info(
-                (
-                    "[PRIVADOC] START analyze | "
-                    "type=%s | "
-                    "filename=%s | "
-                    "size=%.2f MB"
-                ),
-                document_type,
-                file.filename
-                or "documento",
-                len(raw)
-                / (1024 * 1024),
-            )
-
-            result = await _run_job(
-                analyze_document,
-                (
-                    raw,
-                    file.filename
-                    or "documento",
-                    file.content_type,
-                    document_type,
-                ),
-            )
-
-            logger.info(
-                (
-                    "[PRIVADOC] END analyze | "
-                    "type=%s | "
-                    "documents=%s | "
-                    "elapsed=%.2fs"
-                ),
-                document_type,
-                len(
-                    result.get(
-                        "documents",
-                        [],
-                    )
-                ),
-                (
-                    time.perf_counter()
-                    - started_at
-                ),
-            )
-
-        except MemoryError:
-
-            logger.exception(
-                "[PRIVADOC] MemoryError durante analyze"
-            )
-
-            raise HTTPException(
-                status_code=503,
-                detail=(
-                    "El servidor no tiene "
-                    "memoria suficiente para "
-                    "este archivo. Prueba con "
-                    "una imagen o PDF de menor "
-                    "resolución."
-                ),
-            )
-
-        except TimeoutError:
-
-            logger.exception(
-                "[PRIVADOC] Timeout durante analyze"
-            )
-
-            raise HTTPException(
-                status_code=504,
-                detail=(
-                    "El análisis tardó demasiado y "
-                    "se canceló para no bloquear el servidor."
-                ),
-            )
-
-        except Exception as exc:
-
-            logger.exception(
-                "[PRIVADOC] Error durante analyze"
-            )
-
-            raise HTTPException(
-                status_code=400,
-                detail=str(exc),
-            )
-
-        finally:
-
-            raw = b""
-
-            gc.collect()
-
-    analysis_id = result[
-        "analysis_id"
-    ]
-
-    await _cache_put(
-        analysis_id,
-        result,
-    )
-
-    public_docs = [
-        document.public_dict()
-        for document
-        in result["documents"]
-    ]
-
-    return JSONResponse(
-        {
-            "analysis_id":
-                analysis_id,
-
-            "filename":
-                result["filename"],
-
-            "source_is_pdf":
-                result[
-                    "source_is_pdf"
-                ],
-
-            "page_count":
-                result[
-                    "page_count"
-                ],
-
-            "document_count":
-                len(public_docs),
-
-            "document_type":
-                result[
-                    "document_type"
-                ],
-
-            "ocr_engine":
-                result[
-                    "ocr_engine"
-                ],
-
-            "documents":
-                public_docs,
+    job_id = str(uuid.uuid4())
+    async with ANALYSIS_JOBS_LOCK:
+        _cleanup_analysis_jobs_locked()
+        ANALYSIS_JOBS[job_id] = {
+            "status": "queued",
+            "created_at": time.monotonic(),
+            "updated_at": time.monotonic(),
         }
+
+    asyncio.create_task(
+        _run_analysis_job(
+            job_id,
+            raw,
+            file.filename or "documento",
+            file.content_type,
+            document_type,
+        )
     )
+    return JSONResponse(
+        status_code=202,
+        content={
+            "job_id": job_id,
+            "status": "queued",
+            "message": "El documento fue recibido y está en cola.",
+        },
+    )
+
+
+@app.get("/api/analyze/{job_id}")
+async def analyze_status(job_id: str):
+    async with ANALYSIS_JOBS_LOCK:
+        _cleanup_analysis_jobs_locked()
+        job = ANALYSIS_JOBS.get(job_id)
+        if job is None:
+            raise HTTPException(
+                status_code=404,
+                detail="El trabajo no existe o ya expiró.",
+            )
+        response = {
+            "job_id": job_id,
+            "status": job["status"],
+        }
+        if job["status"] == "completed":
+            response.update(job["result"])
+        elif job["status"] == "error":
+            response.update({
+                "error": job["error"],
+                "error_status": job.get("error_status", 400),
+            })
+        return response
 
 
 # -----------------------------------------------------------------------------

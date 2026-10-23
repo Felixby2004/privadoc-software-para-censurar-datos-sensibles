@@ -44,6 +44,10 @@ uvicorn app.main:app --host 0.0.0.0 --port $PORT
 6. Health check: `/health` (Render lo consulta periódicamente; esas peticiones son normales y no analizan documentos).
 7. Mantener una sola instancia/worker durante la evaluación porque el prototipo mantiene los análisis temporalmente en memoria. Una instancia procesa hasta dos documentos en paralelo por defecto; cada trabajo se ejecuta en un proceso aislado y el modelo OCR se carga dentro de ese proceso, que se termina al finalizar para devolver la memoria al sistema.
 
+### Análisis asíncrono
+
+`POST /api/analyze` solo recibe el archivo y devuelve un `job_id` con estado `queued`. El OCR continúa en segundo plano y la interfaz consulta `GET /api/analyze/{job_id}` hasta recibir `completed` o `error`. Esto evita mantener abierta una petición HTTP durante todo el OCR y evita el límite de tiempo del proxy de Render.
+
 ### Concurrencia y límites
 
 Estos valores se pueden configurar como variables de entorno en Render:
