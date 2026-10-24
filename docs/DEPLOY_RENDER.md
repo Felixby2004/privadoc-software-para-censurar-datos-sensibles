@@ -19,7 +19,7 @@ Se recomienda fijar Python 3.13 para mantener el entorno cercano al utilizado du
 Crear `.python-version` en la raíz, por ejemplo:
 
 ```text
-3.13.5
+3.13
 ```
 
 ## 3. Crear un Web Service
