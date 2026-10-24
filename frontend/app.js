@@ -63,7 +63,7 @@ async function readApiResponse(response, fallbackMessage){
     }
   }
   if(!response.ok){
-    const detail=data?.detail || fallbackMessage || `El servidor no pudo completar la solicitud (${response.status}).`;
+    const detail=data?.detail || `${fallbackMessage || 'El servidor no pudo completar la solicitud.'} (HTTP ${response.status})`;
     const error=new Error(detail);
     error.status=response.status;
     throw error;
@@ -173,7 +173,7 @@ $('#analyzeBtn').addEventListener('click',async()=>{
   try{
     const r=await fetch('/api/analyze',{method:'POST',body:fd});
     const queued=await readApiResponse(r,'No se pudo poner el documento en cola.');
-    const d=await waitForAnalysis(queued.job_id);
+    const d=queued.status==='completed' ? queued : await waitForAnalysis(queued.job_id);
     analysis=d; activeDocIndex=0; selectedByDoc.clear(); manualByDoc.clear();
     if(!Array.isArray(analysis.documents) || analysis.documents.length===0) throw new Error('El backend no devolvió ningún documento procesado.');
     analysis.documents.forEach(x=>{

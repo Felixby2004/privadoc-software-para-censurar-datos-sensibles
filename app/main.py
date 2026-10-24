@@ -223,6 +223,10 @@ async def _run_job(
     args: tuple[Any, ...],
 ) -> Any:
     """Ejecuta cada trabajo en un proceso que libera OCR al terminar."""
+    if IS_VERCEL:
+        # Los procesos hijos no son fiables dentro de una función serverless:
+        # Vercel puede bloquear su creación o no incluir el módulo importado.
+        return await asyncio.to_thread(function, *args)
     return await asyncio.to_thread(
         _run_isolated,
         function,
