@@ -25,6 +25,7 @@ BASE = Path(__file__).resolve().parent.parent
 FRONTEND = BASE / "frontend"
 
 VERSION = "0.10.5"
+IS_VERCEL = os.getenv("VERCEL", "").lower() == "1"
 
 SUPPORTED = {
     "dni_azul",
@@ -576,15 +577,32 @@ async def analyze(
             "updated_at": time.monotonic(),
         }
 
-    asyncio.create_task(
-        _run_analysis_job(
-            job_id,
-            raw,
-            file.filename or "documento",
-            file.content_type,
-            document_type,
-        )
+    job_args = (
+        job_id,
+        raw,
+        file.filename or "documento",
+        file.content_type,
+        document_type,
     )
+    if IS_VERCEL:
+        # Vercel puede terminar la invocación inmediatamente después de
+        # responder; un create_task no sobrevive de forma fiable entre
+        # invocaciones serverless.
+        await _run_analysis_job(*job_args)
+        async with ANALYSIS_JOBS_LOCK:
+            job = ANALYSIS_JOBS[job_id]
+            if job["status"] == "error":
+                raise HTTPException(
+                    status_code=int(job.get("error_status", 400)),
+                    detail=job["error"],
+                )
+            return {
+                "job_id": job_id,
+                "status": "completed",
+                **job["result"],
+            }
+
+    asyncio.create_task(_run_analysis_job(*job_args))
     return JSONResponse(
         status_code=202,
         content={
