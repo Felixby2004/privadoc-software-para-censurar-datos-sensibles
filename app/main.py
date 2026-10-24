@@ -6,6 +6,7 @@ import gc
 import logging
 import multiprocessing
 import os
+import queue
 import time
 import uuid
 from contextlib import asynccontextmanager
@@ -130,26 +131,24 @@ ANALYSIS_JOB_TTL_SECONDS = max(CACHE_TTL_SECONDS, 900)
 
 
 def _job_worker(
-    connection: Any,
+    result_queue: Any,
     function: Callable[..., Any],
     args: tuple[Any, ...],
 ) -> None:
     """Ejecuta OCR fuera del proceso web para poder terminar un trabajo atascado."""
     try:
         result = function(*args)
-        connection.send(("ok", result))
+        result_queue.put(("ok", result))
     except BaseException as exc:
         try:
-            connection.send(
+            result_queue.put(
                 (
                     "error",
                     f"{type(exc).__name__}: {exc}",
                 )
             )
-        except (BrokenPipeError, EOFError, OSError):
+        except (BrokenPipeError, EOFError, OSError, ValueError):
             pass
-    finally:
-        connection.close()
 
 
 def _run_isolated(
@@ -159,16 +158,17 @@ def _run_isolated(
 ) -> Any:
     """Aísla OCR/OpenCV para que un bloqueo no deje inutilizable el servidor."""
     context = multiprocessing.get_context("spawn")
-    parent_connection, child_connection = context.Pipe(duplex=False)
+    result_queue = context.Queue(maxsize=1)
     process = context.Process(
         target=_job_worker,
-        args=(child_connection, function, args),
+        args=(result_queue, function, args),
     )
     process.start()
-    child_connection.close()
 
     try:
-        if not parent_connection.poll(timeout):
+        try:
+            status, payload = result_queue.get(timeout=timeout)
+        except queue.Empty:
             if process.is_alive():
                 process.terminate()
             process.join(5)
@@ -179,21 +179,15 @@ def _run_isolated(
                 f"El procesamiento superó el límite de {timeout} segundos."
             )
 
-        try:
-            status, payload = parent_connection.recv()
-        except (EOFError, OSError) as exc:
-            raise RuntimeError(
-                "El proceso de análisis terminó sin devolver un resultado."
-            ) from exc
-
         if status == "error":
             raise RuntimeError(str(payload))
         return payload
     finally:
-        parent_connection.close()
         if process.is_alive():
             process.terminate()
         process.join(5)
+        result_queue.close()
+        result_queue.join_thread()
 
 
 @asynccontextmanager
