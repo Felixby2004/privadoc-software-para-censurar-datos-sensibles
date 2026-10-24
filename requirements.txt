@@ -1,10 +1,11 @@
 fastapi>=0.115,<1
-uvicorn[standard]>=0.30,<1
+uvicorn>=0.30,<1
 python-multipart>=0.0.9
-numpy>=1.26
-opencv-python-headless>=4.9
+numpy>=1.26,<3.0
+opencv-python-headless==4.10.0.84
 Pillow>=10.2
 pypdfium2>=4.30
-rapidocr>=3.9.2
-onnxruntime>=1.17
-pytesseract>=0.3.10
+rapidocr==3.10.0
+onnxruntime==1.20.1; python_version < "3.13"
+onnxruntime==1.23.2; python_version >= "3.13"
+pytesseract>=0.3.10; platform_system == "Windows"

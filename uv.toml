@@ -1,0 +1,6 @@
+# Reduce el pico de disco temporal de uv en entornos serverless como Vercel.
+# Los wheels grandes (OpenCV, RapidOCR y ONNX Runtime) se descargan e
+# instalan uno por uno en lugar de extraerse en paralelo.
+concurrent-downloads = 1
+concurrent-installs = 1
+concurrent-builds = 1

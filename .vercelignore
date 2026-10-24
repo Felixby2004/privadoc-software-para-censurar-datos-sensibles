@@ -1,0 +1,7 @@
+tests/
+README.md
+CHANGELOG.md
+run.bat
+run.sh
+**/__pycache__/
+**/*.pyc
