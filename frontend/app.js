@@ -149,7 +149,7 @@ function finishProgress(){clearInterval(progressTimer);$('#progressBar').style.w
 
 const wait=(ms)=>new Promise(resolve=>setTimeout(resolve,ms));
 async function waitForAnalysis(jobId){
-  const deadline=Date.now()+10*60*1000;
+  const deadline=Date.now()+20*60*1000;
   while(Date.now()<deadline){
     const response=await fetch(`/api/analyze/${encodeURIComponent(jobId)}`,{cache:'no-store'});
     const data=await readApiResponse(response,'No se pudo consultar el estado del análisis.');
@@ -159,9 +159,9 @@ async function waitForAnalysis(jobId){
       error.status=data.error_status;
       throw error;
     }
-    await wait(1500);
+    await wait(2500);
   }
-  throw new Error('El análisis superó el tiempo máximo de espera. El servidor no respondió a tiempo.');
+  throw new Error('El análisis sigue sin terminar después de 20 minutos. Revisa el servidor antes de volver a intentarlo.');
 }
 
 $('#analyzeBtn').addEventListener('click',async()=>{

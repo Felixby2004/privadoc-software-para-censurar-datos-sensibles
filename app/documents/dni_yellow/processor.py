@@ -17,7 +17,7 @@ except Exception:
 from app.core.geometry import perspective_matrix, rotate_image, rotation_homography, warp_with_matrix
 from app.core.imaging import image_to_data_url
 from app.core.models import DocumentResult, OCRLine, SensitiveField
-from app.core.ocr import norm_text, run_ocr, run_ocr_resilient, run_ocr_for_scoring, run_ocr_resilient
+from app.core.ocr import norm_text, run_ocr, run_ocr_line, run_ocr_resilient, run_ocr_for_scoring
 
 BASE = Path(__file__).resolve().parent
 SPEC = json.loads((BASE / "spec.json").read_text(encoding="utf-8"))
@@ -151,25 +151,49 @@ def _register_reference(img: np.ndarray, side: str) -> tuple[np.ndarray, np.ndar
 
 
 def choose_orientation_and_side(card: np.ndarray) -> tuple[np.ndarray, int, str, float]:
-    candidates: list[tuple[float, int, str, np.ndarray, float, float]] = []
+    """Clasifica orientación/lado usando primero la plantilla y OCR solo si hay ambigüedad.
+
+    El registro de referencia ya se calculaba para cada combinación, pero antes siempre se
+    ejecutaban además dos OCR de scoring. Cuando la plantilla tiene una coincidencia fuerte
+    y claramente separada, esos OCR no pueden cambiar razonablemente la decisión y se omiten.
+    """
+    ref_rows: list[tuple[float, int, str, np.ndarray]] = []
+    ref_scores: dict[tuple[int, str], float] = {}
+    rotated_by_angle: dict[int, np.ndarray] = {}
+
     for angle in (0, 180):
         rotated = rotate_image(card, angle)
+        rotated_by_angle[angle] = rotated
+        for side in ("front", "back"):
+            _, _, ref_conf, ref_used = _register_reference(rotated, side)
+            conf = float(ref_conf) if ref_used else 0.0
+            ref_scores[(angle, side)] = conf
+            ref_rows.append((conf, angle, side, rotated))
+
+    ref_rows.sort(key=lambda x: x[0], reverse=True)
+    ref_best = ref_rows[0]
+    ref_second = ref_rows[1] if len(ref_rows) > 1 else ref_best
+    ref_margin = max(0.0, ref_best[0] - ref_second[0])
+
+    # Strong reference match: skip two OCR passes used only for classification.
+    if ref_best[0] >= 0.72 and ref_margin >= 0.10:
+        conf, angle, side, rotated = ref_best
+        class_conf = max(0.55, min(0.99, 0.82 * conf + 0.35 * ref_margin))
+        return rotated, angle, side, class_conf
+
+    candidates: list[tuple[float, int, str, np.ndarray, float, float]] = []
+    for angle in (0, 180):
+        rotated = rotated_by_angle[angle]
         lines = _safe_ocr_for_scoring(rotated)
         ocr_front = _anchor_score(lines, SPEC["front_anchors"]) if lines else 0.0
         ocr_back = _anchor_score(lines, SPEC["back_anchors"]) if lines else 0.0
         ocr_front_conf = max(0.0, min(1.0, ocr_front / 8.0))
         ocr_back_conf = max(0.0, min(1.0, ocr_back / 8.0))
 
-        _, _, ref_front_conf, ref_front_used = _register_reference(rotated, "front")
-        _, _, ref_back_conf, ref_back_used = _register_reference(rotated, "back")
-        if not ref_front_used:
-            ref_front_conf = 0.0
-        if not ref_back_used:
-            ref_back_conf = 0.0
-
+        ref_front_conf = ref_scores[(angle, "front")]
+        ref_back_conf = ref_scores[(angle, "back")]
         front_combined = (0.58 * ocr_front_conf + 0.42 * ref_front_conf) if (lines or ref_front_conf > 0) else 0.20
         back_combined = (0.58 * ocr_back_conf + 0.42 * ref_back_conf) if (lines or ref_back_conf > 0) else 0.20
-
         candidates.append((front_combined, angle, "front", rotated, ocr_front_conf, ref_front_conf))
         candidates.append((back_combined, angle, "back", rotated, ocr_back_conf, ref_back_conf))
 
@@ -225,7 +249,7 @@ def _digits_from_ocr(s: str) -> str:
     return re.sub(r"\D", "", (s or "").upper().translate(table))
 
 
-def _ocr_crop_lines(img: np.ndarray, box: list[int], scale: float = 3.2) -> list[OCRLine]:
+def _ocr_crop_lines(img: np.ndarray, box: list[int], scale: float = 3.2, exhaustive: bool = False, max_passes: int | None = None) -> list[OCRLine]:
     """OCR local sobre un ROI estrecho, con variantes diseñadas para texto pequeño del DNI.
 
     El DNI azul tiene filas muy próximas. Por eso no agrandamos la ROI: agrandamos únicamente
@@ -247,12 +271,20 @@ def _ocr_crop_lines(img: np.ndarray, box: list[int], scale: float = 3.2) -> list
         clahe, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 31, 11
     )
 
+    # Two detector passes are enough for ordinary structured value ROIs. The older
+    # four-pass strategy is retained only when `exhaustive=True` for critical MRZ/header
+    # rescue. This bounds worst-case latency without changing the primary OCR path.
     variants = [
         enlarged,
         cv2.cvtColor(clahe, cv2.COLOR_GRAY2BGR),
-        cv2.cvtColor(otsu, cv2.COLOR_GRAY2BGR),
-        cv2.cvtColor(adaptive, cv2.COLOR_GRAY2BGR),
     ]
+    if exhaustive:
+        variants.extend([
+            cv2.cvtColor(otsu, cv2.COLOR_GRAY2BGR),
+            cv2.cvtColor(adaptive, cv2.COLOR_GRAY2BGR),
+        ])
+    if max_passes is not None:
+        variants = variants[:max(1, int(max_passes))]
     all_lines: list[OCRLine] = []
     for variant in variants:
         try:
@@ -419,19 +451,34 @@ def _extract_mrz_identity(img: np.ndarray, full_lines: list[OCRLine] | None = No
     crop = img[y1:y2, x1:x2]
     texts: list[str] = []
 
-    crop_lines = _ocr_crop_lines(img, box, scale=2.4)
-    texts.extend(x.text for x in crop_lines)
-    texts.extend(_rows_from_ocr_lines(crop_lines))
-
+    # The document-wide OCR has already paid the detector cost. Reuse MRZ lines first.
     if full_lines:
         mrz_full = [x for x in full_lines if _inside_score(x.box, box) >= 0.55]
         texts.extend(x.text for x in mrz_full)
         texts.extend(_rows_from_ocr_lines(mrz_full))
+        parsed = _parse_mrz_candidates(texts)
+        # DNI + two structural attributes are enough to trust this pass. Names remain
+        # optional because compression can split the third MRZ line.
+        strong = sum(bool(parsed.get(k)) for k in ("birth_date", "sexo", "apellido_paterno", "prenombres"))
+        if parsed.get("dni_number") and strong >= 2:
+            return parsed
 
+    # Only rescue the MRZ locally when the global OCR did not recover enough structure.
+    crop_lines = _ocr_crop_lines(img, box, scale=2.4)
+    texts.extend(x.text for x in crop_lines)
+    texts.extend(_rows_from_ocr_lines(crop_lines))
+    parsed = _parse_mrz_candidates(texts)
+    strong = sum(bool(parsed.get(k)) for k in ("birth_date", "sexo", "apellido_paterno", "prenombres"))
+    if parsed.get("dni_number") and strong >= 2:
+        return parsed
+
+    # Tesseract is a final rescue only, never an unconditional second OCR engine.
     texts.extend(_tesseract_text_variants(crop, whitelist="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<", psm=6))
+    parsed = _parse_mrz_candidates(texts)
+    if parsed.get("dni_number"):
+        return parsed
     texts.extend(_tesseract_text_variants(crop, whitelist="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<", psm=11))
     return _parse_mrz_candidates(texts)
-
 
 def _parse_header_identity_texts(texts: list[str]) -> dict[str, str]:
     result: dict[str, str] = {}
@@ -562,16 +609,20 @@ def _extract_header_identity_located(img: np.ndarray, full_lines: list[OCRLine] 
     # Banda deliberadamente más baja que la usada originalmente.
     band = _roi_to_box([0.56, 0.065, 0.998, 0.175])
     candidates: list[OCRLine] = []
-    try:
-        candidates.extend(_ocr_crop_lines(img, band, scale=3.6))
-    except Exception:
-        pass
 
+    # Prefer the OCR already obtained for the whole normalized card.
     if full_lines:
         for ln in full_lines:
             cy = _center(ln.box)[1]
             if band[1] - 8 <= cy <= band[3] + 8 and ln.box[2] >= int(CANON_W * 0.58):
                 candidates.append(ln)
+
+    has_header_number = any(bool(_parse_header_line_with_boxes(ln).get("dni_number")) for ln in candidates)
+    if not has_header_number:
+        try:
+            candidates.extend(_ocr_crop_lines(img, band, scale=3.6, max_passes=1))
+        except Exception:
+            pass
 
     # Primero priorizar líneas que contengan DNI; luego tokens numéricos de 8 dígitos.
     ranked = sorted(
@@ -624,10 +675,20 @@ def _extract_header_identity_located(img: np.ndarray, full_lines: list[OCRLine] 
                 best["verification_digit"] = dv
                 best["verification_digit_box"] = [max(0,dline.box[0]-5), max(0,dline.box[1]-3), min(CANON_W,dline.box[2]+5), min(CANON_H,dline.box[3]+3)]
 
-    # Valores OCR/Tesseract como respaldo aunque no tengan bbox.
-    fallback = _extract_header_identity(img, full_lines)
+    # Fallback values without launching a second detector over a nearly identical band.
+    # Reparse the candidates already obtained above; only Tesseract remains as final rescue.
+    fallback = _parse_header_identity_texts([ln.text for ln in candidates] + _rows_from_ocr_lines(candidates))
     for k, v in fallback.items():
         best.setdefault(k, v)
+    if not best.get("dni_number") or not best.get("verification_digit"):
+        bx1, by1, bx2, by2 = band
+        crop = img[by1:by2, bx1:bx2]
+        for txt in _tesseract_text_variants(crop, whitelist="DNI0123456789-<", psm=7):
+            parsed = _parse_header_identity_texts([txt])
+            for k, v in parsed.items():
+                best.setdefault(k, v)
+            if best.get("dni_number") and best.get("verification_digit"):
+                break
     return best
 
 
@@ -636,22 +697,138 @@ def _extract_header_identity(img: np.ndarray, full_lines: list[OCRLine] | None =
     box = _roi_to_box([0.69, 0.005, 0.998, 0.115])
     x1, y1, x2, y2 = box
     crop = img[y1:y2, x1:x2]
-    lines = _ocr_crop_lines(img, box, scale=3.4)
-    texts = [x.text for x in lines]
-    texts.extend(_rows_from_ocr_lines(lines))
+    texts: list[str] = []
+
+    # Reuse document-wide OCR before launching another detector pass.
     if full_lines:
         top = [x for x in full_lines if _inside_score(x.box, box) >= 0.50]
         texts.extend(x.text for x in top)
         texts.extend(_rows_from_ocr_lines(top))
+        parsed = _parse_header_identity_texts(texts)
+        if parsed.get("dni_number") and parsed.get("verification_digit"):
+            return parsed
+
+    lines = _ocr_crop_lines(img, box, scale=3.4)
+    texts.extend(x.text for x in lines)
+    texts.extend(_rows_from_ocr_lines(lines))
+    parsed = _parse_header_identity_texts(texts)
+    if parsed.get("dni_number") and parsed.get("verification_digit"):
+        return parsed
+
+    # External Tesseract processes are expensive on Windows; use them only when needed.
     texts.extend(_tesseract_text_variants(crop, whitelist="DNI0123456789-<", psm=7))
+    parsed = _parse_header_identity_texts(texts)
+    if parsed.get("dni_number") and parsed.get("verification_digit"):
+        return parsed
     texts.extend(_tesseract_text_variants(crop, whitelist="DNI0123456789-<", psm=6))
     return _parse_header_identity_texts(texts)
 
+def _fast_best_crop_value(img: np.ndarray, box: list[int], kind: str, scale: float) -> OCRLine | None:
+    """Fast path for structured DNI fields that are already isolated to one value row.
+
+    It runs recognition-only first, avoiding the expensive text detector on every field.
+    The value is accepted only when it passes the same structural checks used by the
+    full OCR path; otherwise the caller falls back to the original multi-variant OCR.
+    """
+    x1, y1, x2, y2 = [int(v) for v in box]
+    x1 = max(0, min(CANON_W - 1, x1)); x2 = max(x1 + 1, min(CANON_W, x2))
+    y1 = max(0, min(CANON_H - 1, y1)); y2 = max(y1 + 1, min(CANON_H, y2))
+
+    # Sexo/estado civil imprimen el valor debajo de la etiqueta. Para el fast path
+    # se reconoce únicamente la franja inferior y así se evita leer la etiqueta.
+    read_y1 = y1
+    if kind in {"single_letter", "sex_letter", "civil_letter"}:
+        read_y1 = y1 + int(round((y2 - y1) * 0.40))
+    crop = img[read_y1:y2, x1:x2]
+    if crop.size == 0 or crop.shape[0] < 5 or crop.shape[1] < 6:
+        return None
+
+    gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
+    # A nearly flat ROI has no useful text. This threshold is deliberately very low
+    # so faint printing still goes through OCR.
+    if float(gray.std()) < 3.2:
+        return None
+
+    enlarged = cv2.resize(crop, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
+    variants = [enlarged]
+    clahe = cv2.createCLAHE(clipLimit=2.2, tileGridSize=(8, 8)).apply(cv2.cvtColor(enlarged, cv2.COLOR_BGR2GRAY))
+    variants.append(cv2.cvtColor(clahe, cv2.COLOR_GRAY2BGR))
+    # Third rescue remains recognition-only, so it is far cheaper than another detector pass.
+    adaptive = cv2.adaptiveThreshold(clahe, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 31, 9)
+    variants.append(cv2.cvtColor(adaptive, cv2.COLOR_GRAY2BGR))
+
+    for variant in variants:
+        try:
+            ln, _ = run_ocr_line(variant)
+        except Exception:
+            ln = None
+        if ln is None or float(ln.confidence) < 0.30:
+            continue
+        txt = (ln.text or "").strip()
+        nt = norm_text(txt)
+        if not nt or _is_static_label(txt):
+            continue
+
+        out_box = [x1, read_y1, x2, y2]
+        if kind == "date":
+            parsed = _parse_date_value(txt)
+            if parsed:
+                return OCRLine(parsed, ln.confidence, out_box)
+            continue
+
+        if kind == "letters":
+            if re.search(r"\d", txt):
+                continue
+            letters = re.sub(r"[^A-Z ]", "", nt)
+            compact = letters.replace(" ", "")
+            if len(compact) < 2:
+                continue
+            if len(compact) / max(1, len(nt.replace(" ", ""))) < 0.82:
+                continue
+            value = re.sub(r"\s+", " ", letters).strip()
+            coverage = min(1.0, len(compact) / 12.0)
+            score = 0.65 * float(ln.confidence) + 0.35 * coverage + (0.04 if " " in value else 0.0)
+            if score >= 0.34:
+                return OCRLine(value, min(0.99, score), out_box)
+            continue
+
+        if kind == "ubigeo6":
+            digits = _digits_from_ocr(txt)
+            if len(digits) == 6:
+                return OCRLine(digits, min(0.99, float(ln.confidence) + 0.10), out_box)
+            continue
+
+        if kind in {"single_letter", "sex_letter", "civil_letter"}:
+            compact = re.sub(r"[^A-Z]", "", nt)
+            allowed = {"M", "F"} if kind == "sex_letter" else ({"S", "C", "V", "D"} if kind == "civil_letter" else {"M", "F", "S", "C", "V", "D"})
+            if len(compact) == 1 and compact in allowed:
+                return OCRLine(compact, min(0.99, float(ln.confidence) + 0.10), out_box)
+            continue
+
+        # Generic tight text value.
+        return OCRLine(txt, ln.confidence, out_box)
+
+    return None
 
 def _best_crop_value(img: np.ndarray, box: list[int], kind: str = "text") -> OCRLine | None:
     # Los valores pequeños (sexo/estado civil) necesitan mayor ampliación que nombres o fechas.
     scale = 4.2 if kind in {"single_letter", "sex_letter", "civil_letter"} else (3.8 if kind == "ubigeo6" else 3.2)
-    lines = _ocr_crop_lines(img, box, scale=scale)
+
+    # Fast path: the ROI is already structural and single-row. Recognition-only is much
+    # cheaper than re-running the detector model. If validation fails, the exact old
+    # multi-variant OCR path below remains as fallback.
+    fast = _fast_best_crop_value(img, box, kind, scale)
+    if fast is not None:
+        return fast
+
+    # Exact structured values (dates, 6-digit codes, sex/civil letters) do not need
+    # another text-detector pass after three recognition-only variants. If those fail,
+    # the existing Tesseract/geometry fallback below is both cheaper and safer. Names
+    # and generic text keep one detector rescue because word segmentation can still help.
+    if kind in {"date", "ubigeo6", "single_letter", "sex_letter", "civil_letter"}:
+        lines = []
+    else:
+        lines = _ocr_crop_lines(img, box, scale=scale, max_passes=1)
 
     # Candidatos de fila: RapidOCR puede separar un nombre compuesto o un código en varios tokens.
     row_candidates: list[OCRLine] = []
@@ -695,6 +872,8 @@ def _best_crop_value(img: np.ndarray, box: list[int], kind: str = "text") -> OCR
                 if dh > 30:
                     date_box[1] = date_box[1] + int(round(dh * 0.30))
                 date_candidates.append((float(ln.confidence), OCRLine(parsed, ln.confidence, date_box)))
+        if date_candidates:
+            return max(date_candidates, key=lambda x: x[0])[1]
         x1, y1, x2, y2 = box
         crop = img[y1:y2, x1:x2]
         for text in _tesseract_text_variants(crop, whitelist="0123456789 /.-", psm=7):
@@ -766,7 +945,10 @@ def _best_crop_value(img: np.ndarray, box: list[int], kind: str = "text") -> OCR
         if score >= 0.34:
             candidates.append((score, OCRLine(normalized_value, min(0.99, score), ln.box)))
 
-    # Respaldo Tesseract solo si está disponible localmente; el programa no depende de él.
+    if candidates:
+        return max(candidates, key=lambda x: x[0])[1]
+
+    # Respaldo Tesseract solo si RapidOCR no produjo un valor estructuralmente válido.
     x1, y1, x2, y2 = box
     crop = img[y1:y2, x1:x2]
     if kind == "ubigeo6":
@@ -1043,93 +1225,125 @@ def _box_below_label(label: OCRLine, width: int, height: int, x_offset: int = 0,
     return [x1, y1, min(CANON_W, x1 + width), min(CANON_H, y1 + height)]
 
 
-def _date_triplet_ocr(img: np.ndarray) -> list[tuple[str | None, list[int], float]]:
-    """Lee las tres fechas del bloque derecho independientemente de la plantilla."""
+def _date_triplet_ocr(img: np.ndarray, full_lines: list[OCRLine] | None = None) -> list[tuple[str | None, list[int], float]]:
+    """Lee las tres fechas del panel derecho con una ruta rápida y rescates acotados.
+
+    Primero intenta reconocimiento directo sobre las tres filas conocidas; después reutiliza
+    el OCR global. Solo si alguna fecha sigue faltando ejecuta detección OCR sobre el bloque
+    completo y, como último recurso, Tesseract. Así se conserva la robustez sin multiplicar
+    inferencias costosas en el caso normal.
+    """
     block = _roi_to_box([0.75, 0.08, 0.995, 0.55])
     x1, y1, x2, y2 = block
     crop = img[y1:y2, x1:x2]
-    local = _ocr_crop_lines(img, block, scale=3.2)
-
-    # Agrupar detecciones de fecha por fila visual.
-    clusters: list[dict] = []
-    for ln in local:
-        val = _parse_date_value(ln.text)
-        if not val:
-            continue
-        cy = _center(ln.box)[1]
-        target = None
-        for c in clusters:
-            if abs(c["cy"] - cy) <= 14:
-                target = c; break
-        if target is None:
-            clusters.append({"cy": cy, "values": [val], "boxes": [ln.box], "confs": [float(ln.confidence)]})
-        else:
-            target["values"].append(val); target["boxes"].append(ln.box); target["confs"].append(float(ln.confidence))
-            target["cy"] = sum(_center(b)[1] for b in target["boxes"]) / len(target["boxes"])
-    clusters.sort(key=lambda c: c["cy"])
-
-    ordinal_votes: list[Counter] = [Counter(), Counter(), Counter()]
-    # Cada variante Tesseract aporta una secuencia completa; votar por posición evita
-    # que una lectura aislada (p. ej. 16 vs 15) domine el resultado.
-    text_variants: list[str] = []
-    for psm in (6, 12):
-        text_variants.extend(_tesseract_text_variants(crop, whitelist=None, psm=psm))
-    for text in text_variants:
-        vals = _parse_all_dates(text)
-        if len(vals) >= 3:
-            for i in range(3): ordinal_votes[i][vals[i]] += 1
-
-    results: list[tuple[str | None, list[int], float]] = []
     fallback_boxes = [
         _roi_to_box([0.80, 0.17, 0.97, 0.235]),
         _roi_to_box([0.80, 0.30, 0.97, 0.365]),
         _roi_to_box([0.80, 0.42, 0.97, 0.49]),
     ]
-    for i in range(3):
-        val = ordinal_votes[i].most_common(1)[0][0] if ordinal_votes[i] else None
-        box = fallback_boxes[i]
-        conf = 0.72 if val else 0.45
-        if i < len(clusters):
-            c = clusters[i]
-            cluster_val = Counter(c["values"]).most_common(1)[0][0]
-            if val is None:
-                val = cluster_val
-            # BBox representativa de la fila, no el bounding de la etiqueta.
-            best_idx = max(range(len(c["boxes"])), key=lambda j: c["confs"][j])
-            box = list(c["boxes"][best_idx])
-            conf = max(conf, min(0.97, 0.72 + 0.25 * c["confs"][best_idx]))
-        results.append((val, box, conf))
+
+    results: list[tuple[str | None, list[int], float]] = [(None, b, 0.45) for b in fallback_boxes]
+
+    # 1) Fast recognition-only on each expected date row.
+    for i, box in enumerate(fallback_boxes):
+        fast = _fast_best_crop_value(img, box, "date", 3.0)
+        if fast is not None:
+            parsed = _parse_date_value(fast.text)
+            if parsed:
+                results[i] = (parsed, list(fast.box), max(0.78, float(fast.confidence)))
+    if all(item[0] for item in results):
+        return results
+
+    # 2) Reuse the document-wide OCR before launching another detector pass.
+    if full_lines:
+        global_dates: list[tuple[float, OCRLine, str]] = []
+        for ln in full_lines:
+            if _inside_score(ln.box, block) < 0.35:
+                continue
+            parsed = _parse_date_value(ln.text)
+            if parsed:
+                global_dates.append((_center(ln.box)[1], ln, parsed))
+        global_dates.sort(key=lambda x: x[0])
+        for _, ln, parsed in global_dates:
+            cy = _center(ln.box)[1]
+            idx = min(range(3), key=lambda j: abs(cy - _center(fallback_boxes[j])[1]))
+            if results[idx][0] is None:
+                results[idx] = (parsed, list(ln.box), max(0.72, float(ln.confidence)))
+    if all(item[0] for item in results):
+        return results
+
+    # 3) One bounded local detector rescue over the full date panel.
+    local = _ocr_crop_lines(img, block, scale=3.0, max_passes=1)
+    for ln in local:
+        parsed = _parse_date_value(ln.text)
+        if not parsed:
+            continue
+        cy = _center(ln.box)[1]
+        idx = min(range(3), key=lambda j: abs(cy - _center(fallback_boxes[j])[1]))
+        if results[idx][0] is None:
+            results[idx] = (parsed, list(ln.box), max(0.72, float(ln.confidence)))
+    if all(item[0] for item in results):
+        return results
+
+    # 4) Final Tesseract rescue only for still-missing dates.
+    for psm in (6, 12):
+        for text in _tesseract_text_variants(crop, whitelist=None, psm=psm):
+            vals = _parse_all_dates(text)
+            if len(vals) >= 3:
+                for i in range(3):
+                    if results[i][0] is None:
+                        results[i] = (vals[i], fallback_boxes[i], 0.72)
+                break
+        if all(item[0] for item in results):
+            break
     return results
 
 
 def _read_single_header_digit(img: np.ndarray) -> tuple[str | None, float]:
     # El dígito verificador impreso en el DNI amarillo NO es el check digit de la MRZ.
     box = _roi_to_box([0.915, 0.025, 0.992, 0.125])
+    x1, y1, x2, y2 = box
+    crop = img[y1:y2, x1:x2]
     candidates: list[tuple[float, str]] = []
-    for ln in _ocr_crop_lines(img, box, scale=4.2):
+
+    # Recognition-only first: this ROI is a single printed digit/short token.
+    if crop.size:
+        enlarged = cv2.resize(crop, None, fx=4.0, fy=4.0, interpolation=cv2.INTER_CUBIC)
+        try:
+            line, _ = run_ocr_line(enlarged)
+        except Exception:
+            line = None
+        if line is not None:
+            digits = re.sub(r"\D", "", line.text or "")
+            if len(digits) == 1:
+                return digits, max(0.80, float(line.confidence))
+            if 1 < len(digits) <= 3:
+                candidates.append((0.68 * float(line.confidence), digits[-1]))
+
+    # Bounded detector rescue.
+    for ln in _ocr_crop_lines(img, box, scale=4.0, max_passes=1):
         digits = re.sub(r"\D", "", ln.text or "")
         if len(digits) == 1:
             candidates.append((float(ln.confidence), digits))
-        elif len(digits) <= 3 and digits:
+        elif 1 < len(digits) <= 3:
             candidates.append((float(ln.confidence) * 0.72, digits[-1]))
-    x1, y1, x2, y2 = box
-    crop = img[y1:y2, x1:x2]
-    for psm in (10, 7, 13):
+
+    if candidates:
+        scores: dict[str, float] = defaultdict(float)
+        for score, digit in candidates:
+            scores[digit] += score
+        digit = max(scores, key=scores.get)
+        return digit, min(0.95, scores[digit])
+
+    # Tesseract only as the last fallback, and stop after the first usable digit.
+    for psm in (10, 7):
         for txt in _tesseract_text_variants(crop, whitelist="0123456789-", psm=psm):
             digits = re.sub(r"\D", "", txt)
             if len(digits) == 1:
-                candidates.append((0.80, digits))
-            elif 1 < len(digits) <= 3:
-                candidates.append((0.62, digits[-1]))
-    if not candidates:
-        return None, 0.0
-    # Voto ponderado por confianza.
-    scores: dict[str, float] = defaultdict(float)
-    for score, digit in candidates:
-        scores[digit] += score
-    digit = max(scores, key=scores.get)
-    return digit, min(0.95, scores[digit] / max(1.0, len([1 for _, d in candidates if d == digit])))
-
+                return digits, 0.80
+            if 1 < len(digits) <= 3:
+                return digits[-1], 0.62
+    return None, 0.0
 
 
 def _locate_vertical_dni_box(img: np.ndarray, expected_number: str | None = None) -> tuple[list[int] | None, str | None, float]:
@@ -1216,12 +1430,20 @@ def _extract_yellow_front_fields(img: np.ndarray, lines: list[OCRLine], registra
     mrz = _extract_mrz_identity(img, lines)
     header = _extract_header_identity_located(img, lines)
 
-    # OCR adicional solamente en el bloque textual. Se usa para localizar etiquetas y no
-    # para deformar la imagen según una única plantilla.
+    # OCR adicional solo si el pase global no encontró suficientes anclas. En versiones
+    # anteriores siempre se re-analizaban dos bloques grandes, aunque el OCR global ya
+    # hubiera leído las etiquetas; eso multiplicaba el tiempo sin aportar información.
     rich_lines = list(lines)
-    for region in ([0.24, 0.08, 0.73, 0.69], [0.75, 0.08, 0.995, 0.55]):
+    anchor_checks = [
+        (["PRIMER APELLIDO"], 0.18),
+        (["SEGUNDO APELLIDO"], 0.31),
+        (["PRE NOMBRES", "PRENOMBRES"], 0.43),
+        (["SEXO"], 0.60),
+    ]
+    found_anchors = sum(1 for aliases, hint in anchor_checks if _find_anchor_line(rich_lines, aliases, hint) is not None)
+    if found_anchors < 3:
         try:
-            rich_lines.extend(_ocr_crop_lines(img, _roi_to_box(region), scale=2.8))
+            rich_lines.extend(_ocr_crop_lines(img, _roi_to_box([0.24, 0.08, 0.73, 0.69]), scale=2.8, max_passes=1))
         except Exception:
             pass
 
@@ -1254,14 +1476,18 @@ def _extract_yellow_front_fields(img: np.ndarray, lines: list[OCRLine], registra
     add("verification_digit", verifier_box, verifier or "No leído con confianza", vconf if verifier else 0.50,
         "OCR cabecera localizado" if header.get("verification_digit_box") else ("OCR cabecera" if verifier else "zona cabecera"))
 
-    # Código vertical lateral: es el mismo DNI impreso en vertical. Se localiza con OCR
-    # sobre una banda estrecha rotada, usando el número de cabecera/MRZ como validación.
-    serial_box, serial_value, serial_conf = _locate_vertical_dni_box(img, number)
-    if serial_box is not None:
-        add("left_serial", serial_box, serial_value or number or "Código lateral identificado", max(0.82, serial_conf), "OCR vertical + DNI")
+    # Código vertical lateral: contiene el mismo DNI ya validado por cabecera/MRZ.
+    # La ranura impresa es geométricamente estable en esta familia, por lo que no repetimos
+    # varias rotaciones + detector OCR cuando ya conocemos el número.
+    serial_fallback = _roi_to_box([0.020, 0.15, 0.090, 0.63])
+    if number:
+        add("left_serial", serial_fallback, number, 0.90, "DNI cabecera/MRZ + geometría vertical")
     else:
-        # Fallback más estrecho y ligeramente desplazado a la izquierda que el ROI anterior.
-        add("left_serial", _roi_to_box([0.020, 0.15, 0.090, 0.63]), number or "Región sensible identificada", 0.72, "geometría normalizada")
+        serial_box, serial_value, serial_conf = _locate_vertical_dni_box(img, None)
+        if serial_box is not None:
+            add("left_serial", serial_box, serial_value or "Código lateral identificado", max(0.82, serial_conf), "OCR vertical")
+        else:
+            add("left_serial", serial_fallback, "Región sensible identificada", 0.72, "geometría normalizada")
 
     # Fotografías: regiones geométricas estables una vez normalizada la tarjeta.
     for fid in ("photo", "mini_photo"):
@@ -1347,28 +1573,24 @@ def _extract_yellow_front_fields(img: np.ndarray, lines: list[OCRLine], registra
     add("sexo", sex_box, sex_val or "No leído con confianza", 0.95 if mrz.get("sexo") else (0.72 if sex_local else 0.50), "MRZ + etiqueta OCR" if mrz.get("sexo") else "OCR anclado")
 
     # Fechas del panel derecho: OCR del bloque completo, no tres ROIs rígidas.
-    triplet = _date_triplet_ocr(img)
+    triplet = _date_triplet_ocr(img, rich_lines)
     for fid, item in zip(("fecha_inscripcion", "fecha_emision", "fecha_caducidad"), triplet):
         value, box, conf = item
         add(fid, box, value or "No leído con confianza", conf, "OCR bloque de fechas")
 
-    # MRZ: la caja de censura SIEMPRE queda limitada al bloque inferior de tres líneas.
-    # El OCR se ejecuta únicamente dentro de ese recorte para evitar que una línea grande
-    # del OCR global expanda el bbox hasta abarcar todo el DNI.
+    # MRZ: la caja de censura siempre queda limitada al bloque inferior. Reutilizamos
+    # las líneas del OCR global; `_extract_mrz_identity` ya hizo un rescate local si fue
+    # necesario para identidad, por lo que repetir otro OCR aquí era redundante.
     mrz_fd = defs["mrz"]
     mrz_box = _roi_to_box(mrz_fd["roi"])
-    try:
-        mrz_crop_lines = _ocr_crop_lines(img, mrz_box, scale=2.35)
-    except Exception:
-        mrz_crop_lines = []
+    mrz_crop_lines = [x for x in lines if _inside_score(x.box, mrz_box) >= 0.50]
     mrz_text_lines = [x.text for x in mrz_crop_lines if _mrz_like(x.text)]
     if not mrz_text_lines:
-        # Recompone filas aunque RapidOCR las haya dividido en varios tokens.
         rows = _rows_from_ocr_lines(mrz_crop_lines)
         mrz_text_lines = [x for x in rows if _mrz_like(x)]
     mrz_value = " / ".join(mrz_text_lines[:3]) if mrz_text_lines else "Zona MRZ identificada"
     add("mrz", mrz_box, mrz_value, 0.93 if mrz_text_lines else 0.88,
-        "OCR MRZ acotado + geometría" if mrz_text_lines else "geometría normalizada")
+        "OCR global MRZ + geometría" if mrz_text_lines else "geometría normalizada")
 
     fields.sort(key=lambda f: (f.box[1], f.box[0]))
     return fields
@@ -1707,18 +1929,11 @@ def extract_fields(img: np.ndarray, lines: list[OCRLine], side: str, registratio
         # Strong MRZ fields: date of birth and sex are structurally encoded and are safer than
         # borrowing OCR from neighbouring labels.
         if side == "front" and fid in {"birth_date", "sexo"} and mrz_identity.get(fid):
+            # These values are encoded structurally in the MRZ. The extra per-field OCR used
+            # to run only as validation while the censoring box stayed fixed, so it added
+            # latency without changing the protected region. Reuse MRZ + geometry directly.
             mrz_val = mrz_identity[fid]
-            kind = "date" if fid == "birth_date" else "sex_letter"
-            local = _best_crop_value(img, ocr_roi, kind) if registration_confidence >= 0.80 else None
-            local_val = None
-            if local is not None:
-                local_val = (_parse_date_value(local.text) or local.text) if kind == "date" else norm_text(local.text)
-            if local is not None and local_val == mrz_val:
-                # El OCR valida el valor, pero para campos minúsculos como Sexo la caja OCR
-                # es demasiado inestable. La censura usa siempre la geometría de plantilla.
-                add_field(fd, value_roi, mrz_val, 0.96 * registration_confidence, "OCR ROI + MRZ + plantilla")
-            else:
-                add_field(fd, value_roi, mrz_val, 0.93 * registration_confidence, "MRZ + plantilla")
+            add_field(fd, value_roi, mrz_val, 0.94 * registration_confidence, "MRZ + plantilla")
             continue
 
         # Tight value ROIs: OCR only inside the value rectangle. If registration is weak, do not
@@ -1841,7 +2056,7 @@ def process_yellow_dni(page: np.ndarray, page_index: int, quad: np.ndarray, dete
 
     warnings: list[str] = []
     try:
-        lines, engine = run_ocr_resilient(aligned)
+        lines, engine = run_ocr_resilient(aligned, structured=True)
     except Exception:
         lines, engine = [], "Sin OCR local disponible (solo plantilla geométrica)"
         warnings.append("No se pudo ejecutar OCR local; la interfaz mostrará solo regiones basadas en plantilla.")

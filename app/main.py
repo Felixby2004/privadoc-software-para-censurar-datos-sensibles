@@ -25,7 +25,7 @@ from app.services.pipeline import analyze_document, redact_analysis
 BASE = Path(__file__).resolve().parent.parent
 FRONTEND = BASE / "frontend"
 
-VERSION = "0.10.5"
+VERSION = "0.10.7"
 IS_VERCEL = os.getenv("VERCEL", "").lower() == "1"
 
 SUPPORTED = {
@@ -73,7 +73,7 @@ MAX_CONCURRENT_JOBS = max(
     int(
         os.getenv(
             "PRIVADOC_MAX_CONCURRENT",
-            "2",
+            "1",
         )
     ),
 )
@@ -83,19 +83,30 @@ JOB_QUEUE_TIMEOUT_SECONDS = max(
     int(
         os.getenv(
             "PRIVADOC_QUEUE_TIMEOUT",
-            "5",
+            "900",
         )
     ),
 )
 
 JOB_TIMEOUT_SECONDS = max(
-    30,
+    60,
     int(
         os.getenv(
             "PRIVADOC_JOB_TIMEOUT",
-            "180",
+            "900",
         )
     ),
+)
+
+# En Windows, crear un proceso con ``spawn`` por cada documento obliga a
+# cargar Python + OpenCV + RapidOCR/ONNX desde cero en cada análisis. Eso
+# puede convertir un OCR válido en un falso timeout. Por defecto reutilizamos
+# el proceso web mediante ``asyncio.to_thread`` y dejamos el aislamiento duro
+# como una opción explícita para despliegues que realmente lo necesiten.
+USE_ISOLATED_JOBS = (
+    not IS_VERCEL
+    and os.getenv("PRIVADOC_ISOLATE_JOBS", "0").strip().lower()
+    in {"1", "true", "yes", "on"}
 )
 
 CACHE_TTL_SECONDS = max(
@@ -216,11 +227,17 @@ async def _run_job(
     function: Callable[..., Any],
     args: tuple[Any, ...],
 ) -> Any:
-    """Ejecuta cada trabajo en un proceso que libera OCR al terminar."""
-    if IS_VERCEL:
-        # Los procesos hijos no son fiables dentro de una función serverless:
-        # Vercel puede bloquear su creación o no incluir el módulo importado.
+    """Ejecuta OCR sin recargar el motor en cada documento.
+
+    El modo normal usa un hilo del proceso actual. Así RapidOCR/ONNX queda
+    inicializado y se reutiliza entre análisis, algo especialmente importante
+    en Windows. El proceso aislado queda disponible con
+    ``PRIVADOC_ISOLATE_JOBS=1`` para entornos donde se prefiera un timeout
+    duro aunque tenga mayor coste de arranque.
+    """
+    if IS_VERCEL or not USE_ISOLATED_JOBS:
         return await asyncio.to_thread(function, *args)
+
     return await asyncio.to_thread(
         _run_isolated,
         function,
@@ -359,8 +376,11 @@ async def _run_analysis_job(
     document_type: str,
 ) -> None:
     try:
-        await _set_analysis_job(job_id, status="processing")
+        # El trabajo permanece como "queued" mientras espera el único slot OCR.
+        # Así varios usuarios pueden enviar documentos sin ejecutar RapidOCR
+        # simultáneamente sobre el mismo motor compartido.
         async with _job_slot():
+            await _set_analysis_job(job_id, status="processing")
             started_at = time.perf_counter()
             logger.info(
                 "[PRIVADOC] START analyze | type=%s | filename=%s | size=%.2f MB | job=%s",
@@ -407,7 +427,12 @@ async def _run_analysis_job(
         await _set_analysis_job(
             job_id,
             status="error",
-            error="El análisis tardó demasiado y se canceló.",
+            error=(
+                "El análisis superó el límite de seguridad configurado. "
+                "Si activaste PRIVADOC_ISOLATE_JOBS=1, aumenta "
+                "PRIVADOC_JOB_TIMEOUT o desactiva el aislamiento para "
+                "reutilizar el motor OCR."
+            ),
             error_status=504,
         )
     except Exception as exc:
@@ -515,6 +540,9 @@ async def api_health():
 
         "job_timeout_seconds":
             JOB_TIMEOUT_SECONDS,
+
+        "isolated_jobs":
+            USE_ISOLATED_JOBS,
 
         "active_sessions":
             active_sessions,

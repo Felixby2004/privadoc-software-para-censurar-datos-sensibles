@@ -54,10 +54,15 @@ def _box_from_poly(poly: Any) -> list[int]:
 
 
 def _rapid(img: np.ndarray) -> list[OCRLine]:
+    """OCR completo (detección + reconocimiento) sin clasificador de giro.
+
+    PRIVADOC normaliza la orientación antes de llegar aquí. Desactivar `use_cls` evita
+    ejecutar un tercer modelo ONNX en cada ROI sin perder la detección ni el reconocimiento.
+    """
     engine = _get_engine()
     if engine is None:
         return []
-    raw = engine(img)
+    raw = engine(img, use_det=True, use_cls=False, use_rec=True)
     out: list[OCRLine] = []
     if hasattr(raw, "boxes") and hasattr(raw, "txts") and hasattr(raw, "scores"):
         boxes = getattr(raw, "boxes", None)
@@ -84,6 +89,42 @@ def _rapid(img: np.ndarray) -> list[OCRLine]:
         except Exception:
             pass
     return out
+
+
+def _rapid_line(img: np.ndarray) -> OCRLine | None:
+    """Reconoce una ROI que ya corresponde a una sola línea, sin detector de texto.
+
+    Es mucho más barato que ejecutar DBNet sobre cada campo del DNI. La caja devuelta
+    cubre la ROI completa; los procesadores siguen validando el contenido por tipo
+    (fecha, nombre, ubigeo, etc.) antes de aceptarlo.
+    """
+    engine = _get_engine()
+    if engine is None or img is None or img.size == 0:
+        return None
+    raw = engine(img, use_det=False, use_cls=False, use_rec=True)
+    txts = getattr(raw, "txts", None)
+    scores = getattr(raw, "scores", None)
+    if txts is None or scores is None:
+        result = raw[0] if isinstance(raw, tuple) else raw
+        if not result:
+            return None
+        try:
+            # Compatibilidad con retornos antiguos: [(text, score)] o (text, score).
+            item = result[0] if isinstance(result, (list, tuple)) and result and isinstance(result[0], (list, tuple)) else result
+            text = clean_text(str(item[0]))
+            conf = float(item[1])
+        except Exception:
+            return None
+    else:
+        try:
+            text = clean_text(str(txts[0])) if len(txts) else ""
+            conf = float(scores[0]) if len(scores) else 0.0
+        except Exception:
+            return None
+    if not text or conf < 0.20:
+        return None
+    h, w = img.shape[:2]
+    return OCRLine(text, conf, [0, 0, int(w), int(h)])
 
 
 def _tesseract(img: np.ndarray) -> list[OCRLine]:
@@ -129,6 +170,26 @@ def _run_single_engine(img: np.ndarray) -> tuple[list[OCRLine], str]:
 
 def run_ocr(img: np.ndarray) -> tuple[list[OCRLine], str]:
     return _run_single_engine(img)
+
+
+def run_ocr_line(img: np.ndarray) -> tuple[OCRLine | None, str]:
+    """OCR rápido para una única línea de texto ya recortada.
+
+    Usa solo el reconocedor de RapidOCR. Si RapidOCR no está disponible, recurre a
+    Tesseract PSM 7. Los procesadores validan después el formato esperado.
+    """
+    if _get_engine() is not None:
+        return _rapid_line(img), "RapidOCR 3.x / ONNX Runtime local (rec-only)"
+    if pytesseract is not None:
+        rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        try:
+            text = clean_text(pytesseract.image_to_string(rgb, config="--oem 3 --psm 7", lang="spa+eng"))
+        except Exception:
+            text = ""
+        if text:
+            h, w = img.shape[:2]
+            return OCRLine(text, 0.70, [0, 0, int(w), int(h)]), "Tesseract local (respaldo)"
+    return None, "Sin OCR local disponible"
 
 
 def _map_line_back(line: OCRLine, inv_scale: float) -> OCRLine:
@@ -204,7 +265,7 @@ def _enhanced_variants(img: np.ndarray) -> list[np.ndarray]:
     return variants
 
 
-def run_ocr_resilient(img: np.ndarray) -> tuple[list[OCRLine], str]:
+def run_ocr_resilient(img: np.ndarray, structured: bool = False) -> tuple[list[OCRLine], str]:
     """OCR más tolerante a texto pequeño/grande y a capturas/PDFs reescalados.
 
     Mantiene `run_ocr` simple para OCR ROI repetitivo, y reserva esta versión para
@@ -231,29 +292,52 @@ def run_ocr_resilient(img: np.ndarray) -> tuple[list[OCRLine], str]:
     base = _run_variant(img, 1.0)
     merged = _merge_lines(collected)
     avg_conf = (sum(x.confidence for x in merged) / len(merged)) if merged else 0.0
-    if len(merged) >= 12 and avg_conf >= 0.48:
+    if len(merged) >= 10 and avg_conf >= 0.50:
         return merged, (engine_name or "RapidOCR 3.x / ONNX Runtime local") + " + multiescala"
 
-    # 2) Rescate ligero con contraste local al mismo tamaño.
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    clahe = cv2.createCLAHE(clipLimit=2.4, tileGridSize=(8, 8)).apply(gray)
-    _run_variant(cv2.cvtColor(clahe, cv2.COLOR_GRAY2BGR), 1.0)
-    merged = _merge_lines(collected)
-    avg_conf = (sum(x.confidence for x in merged) / len(merged)) if merged else 0.0
-    if len(merged) >= 12 and avg_conf >= 0.46:
-        return merged, (engine_name or "RapidOCR 3.x / ONNX Runtime local") + " + multiescala"
-
-    # 3) Sólo si sigue corto, ampliar una vez. Esto ayuda a textos muy pequeños en PDF/capturas.
+    # 2) Structured identity documents have stable geometry and field-level rescue logic.
+    # For them, spend the second *global* detector pass on the variant with the highest
+    # expected gain: enlargement + CLAHE in one shot. This replaces the old sequence of
+    # same-size CLAHE + scaled original + possible adaptive full-card OCR.
     if max_side <= 1000:
         scale = 2.1
     elif max_side <= 1600:
         scale = 1.55
     else:
         scale = 1.28
+
+    if structured:
+        scaled = _resize_for_scale(img, scale)
+        sgray = cv2.cvtColor(scaled, cv2.COLOR_BGR2GRAY)
+        sclahe = cv2.createCLAHE(clipLimit=2.4, tileGridSize=(8, 8)).apply(sgray)
+        inv = 1.0 / scale
+        _run_variant(cv2.cvtColor(sclahe, cv2.COLOR_GRAY2BGR), inv)
+        merged = _merge_lines(collected)
+        if merged:
+            return merged, (engine_name or "RapidOCR 3.x / ONNX Runtime local") + " + estructurado"
+        return base, (engine_name or "RapidOCR 3.x / ONNX Runtime local") + " + estructurado"
+
+    # General documents/receipts keep the broader resilient path because their layout is
+    # not fixed and they cannot rely on deterministic field ROIs.
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    clahe = cv2.createCLAHE(clipLimit=2.4, tileGridSize=(8, 8)).apply(gray)
+    _run_variant(cv2.cvtColor(clahe, cv2.COLOR_GRAY2BGR), 1.0)
+    merged = _merge_lines(collected)
+    avg_conf = (sum(x.confidence for x in merged) / len(merged)) if merged else 0.0
+    if len(merged) >= 10 and avg_conf >= 0.46:
+        return merged, (engine_name or "RapidOCR 3.x / ONNX Runtime local") + " + multiescala"
+
+    # 3) Sólo si sigue corto, ampliar una vez. Esto ayuda a textos muy pequeños en PDF/capturas.
     scaled = _resize_for_scale(img, scale)
     inv = 1.0 / scale
     _run_variant(scaled, inv)
-    if len(merged) < 8:
+    # Recompute after the scaled pass. Older code checked the stale pre-scale `merged`
+    # value and could run an unnecessary full adaptive OCR even when scaling had worked.
+    merged = _merge_lines(collected)
+    avg_conf = (sum(x.confidence for x in merged) / len(merged)) if merged else 0.0
+    if len(merged) >= 9 and avg_conf >= 0.43:
+        return merged, (engine_name or "RapidOCR 3.x / ONNX Runtime local") + " + multiescala"
+    if len(merged) < 6:
         sgray = cv2.cvtColor(scaled, cv2.COLOR_BGR2GRAY)
         sclahe = cv2.createCLAHE(clipLimit=2.4, tileGridSize=(8, 8)).apply(sgray)
         adaptive = cv2.adaptiveThreshold(sclahe, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 31, 11)
