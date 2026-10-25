@@ -25,7 +25,7 @@ from app.services.pipeline import analyze_document, redact_analysis
 BASE = Path(__file__).resolve().parent.parent
 FRONTEND = BASE / "frontend"
 
-VERSION = "0.10.8"
+VERSION = "0.10.9"
 IS_VERCEL = os.getenv("VERCEL", "").lower() == "1"
 
 SUPPORTED = {

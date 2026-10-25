@@ -1,3 +1,9 @@
+# v0.10.9 - Dependencias OCR ligeras para Vercel
+
+- Fija NumPy por debajo de 2.0 para mantener compatibilidad con ONNX Runtime 1.18.1.
+- Usa ONNX Runtime 1.18.1 en Python 3.12; su wheel Linux es considerablemente menor que 1.20.1 y evita que Vercel agote el espacio temporal al extraer dependencias.
+- Mantiene ONNX Runtime 1.23.2 en Python 3.13+, donde 1.18.1 no tiene wheel compatible.
+
 # v0.10.8 - Ajuste de despliegue Vercel
 
 - Mantiene intacta la lógica OCR estructural de v0.10.7.
